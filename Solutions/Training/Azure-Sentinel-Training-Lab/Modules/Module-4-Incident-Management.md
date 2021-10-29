@@ -1,4 +1,4 @@
-# Module 4 - Incident Managment
+# Module 4 - Incident Management
 
 #### 🎓 Level: 300 (Intermediate)
 #### ⌛ Estimated time to complete this lab: 60 minutes
