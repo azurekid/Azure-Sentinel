@@ -1,0 +1,140 @@
+{
+    "id": "BitwardenFunctionApp",
+    "title": "Bitwarden (via Azure Function)",
+    "publisher": "Bitwarden Inc",
+    "descriptionMarkdown": "The **Bitwarden** data connector ingests organisation event logs, member lists, and group lists from the [Bitwarden Public API](https://bitwarden.com/help/public-api/) into Microsoft Sentinel using an Azure Function App.\n\nSupports **Bitwarden Cloud US**, **Bitwarden Cloud EU**, and **self-hosted / on-premises Bitwarden servers**.\n\nThe connector polls on a 5-minute timer:\n- **Event logs** (`BitwardenEventLogs_CL`) — organisation audit events with a 5-minute sliding window.\n- **Members** (`BitwardenMembers_CL`) — full member snapshot.\n- **Groups** (`BitwardenGroups_CL`) — full group snapshot.",
+    "graphQueries": [
+        {
+            "metricName": "Bitwarden event logs ingested",
+            "legend": "BitwardenEventLogs_CL",
+            "baseQuery": "BitwardenEventLogs_CL"
+        },
+        {
+            "metricName": "Bitwarden member records ingested",
+            "legend": "BitwardenMembers_CL",
+            "baseQuery": "BitwardenMembers_CL"
+        },
+        {
+            "metricName": "Bitwarden group records ingested",
+            "legend": "BitwardenGroups_CL",
+            "baseQuery": "BitwardenGroups_CL"
+        }
+    ],
+    "sampleQueries": [
+        {
+            "description": "All Bitwarden event logs — most recent first",
+            "query": "BitwardenEventLogs_CL\n| sort by TimeGenerated desc"
+        },
+        {
+            "description": "Events by type in the last 24 hours",
+            "query": "BitwardenEventLogs_CL\n| where TimeGenerated > ago(24h)\n| summarize Count = count() by eventType\n| sort by Count desc"
+        },
+        {
+            "description": "Events by acting user in the last 7 days",
+            "query": "BitwardenEventLogs_CL\n| where TimeGenerated > ago(7d)\n| summarize EventCount = count() by actingUserId\n| sort by EventCount desc"
+        },
+        {
+            "description": "All current organisation members",
+            "query": "BitwardenMembers_CL\n| summarize arg_max(TimeGenerated, *) by memberId\n| project TimeGenerated, memberId, email, name"
+        },
+        {
+            "description": "All current organisation groups",
+            "query": "BitwardenGroups_CL\n| summarize arg_max(TimeGenerated, *) by groupId\n| project TimeGenerated, groupId, name"
+        }
+    ],
+    "dataTypes": [
+        {
+            "name": "BitwardenEventLogs_CL",
+            "lastDataReceivedQuery": "BitwardenEventLogs_CL\n| summarize Time = max(TimeGenerated)\n| where isnotempty(Time)"
+        },
+        {
+            "name": "BitwardenMembers_CL",
+            "lastDataReceivedQuery": "BitwardenMembers_CL\n| summarize Time = max(TimeGenerated)\n| where isnotempty(Time)"
+        },
+        {
+            "name": "BitwardenGroups_CL",
+            "lastDataReceivedQuery": "BitwardenGroups_CL\n| summarize Time = max(TimeGenerated)\n| where isnotempty(Time)"
+        }
+    ],
+    "connectivityCriterias": [
+        {
+            "type": "IsConnectedQuery",
+            "value": [
+                "BitwardenEventLogs_CL\n| summarize LastLogReceived = max(TimeGenerated)\n| project IsConnected = LastLogReceived > ago(30m)"
+            ]
+        }
+    ],
+    "availability": {
+        "status": 1,
+        "isPreview": false
+    },
+    "permissions": {
+        "resourceProvider": [
+            {
+                "provider": "Microsoft.OperationalInsights/workspaces",
+                "permissionsDisplayText": "Read and write permissions on the workspace are required.",
+                "providerDisplayName": "Workspace",
+                "scope": "Workspace",
+                "requiredPermissions": {
+                    "write": true,
+                    "read": true,
+                    "delete": true
+                }
+            },
+            {
+                "provider": "Microsoft.OperationalInsights/workspaces/sharedKeys",
+                "permissionsDisplayText": "Read permissions to shared keys for the workspace are required. [See the documentation to learn more about workspace keys](https://docs.microsoft.com/azure/azure-monitor/platform/agent-windows#obtain-workspace-id-and-key).",
+                "providerDisplayName": "Keys",
+                "scope": "Workspace",
+                "requiredPermissions": {
+                    "action": true
+                }
+            }
+        ],
+        "customs": [
+            {
+                "name": "Microsoft.Web/sites permissions",
+                "description": "Read and write permissions to Azure Functions are required to create the Function App. [See the documentation to learn more about Azure Functions](https://docs.microsoft.com/azure/azure-functions/)."
+            },
+            {
+                "name": "Bitwarden Organisation API Key",
+                "description": "A Bitwarden **organisation** API key (`client_id` and `client_secret`) is required. Obtain it from the Bitwarden Admin Console under **Settings → Organisation info → API key**. Note: this is the *organisation* API key, not a personal API key — the `client_id` will be in the format `organization.<ID>`. See [Bitwarden Public API authentication](https://bitwarden.com/help/public-api/#authentication) for details."
+            },
+            {
+                "name": "Bitwarden API endpoint (self-hosted only)",
+                "description": "For self-hosted / on-premises Bitwarden servers, provide the full base URL of your server (e.g. `https://bw.example.com`). The connector will automatically append `/identity/connect/token` and `/api/public/<resource>`. Cloud-hosted customers leave these fields empty."
+            }
+        ]
+    },
+    "instructionSteps": [
+        {
+            "title": "",
+            "description": ">**NOTE:** This connector uses an Azure Function App and the Azure Monitor Logs Ingestion API (DCE/DCR) to ingest Bitwarden data into Microsoft Sentinel. The ARM template automatically creates the Data Collection Endpoint, three custom log tables, three Data Collection Rules, and the required role assignments. This may result in additional data ingestion and compute costs. Check the [Azure Functions pricing page](https://azure.microsoft.com/pricing/details/functions/) and the [Azure Monitor pricing page](https://azure.microsoft.com/pricing/details/monitor/) for details."
+        },
+        {
+            "title": "",
+            "description": ">**(Optional)** Store the Bitwarden `client_secret` in an **Azure Key Vault** instead of as a plain Function App setting. Provide an existing Key Vault name during deployment or let the template create one. A User-Assigned Managed Identity is automatically configured with the required access policies."
+        },
+        {
+            "title": "STEP 1 – Obtain your Bitwarden organisation API key",
+            "description": "1. Log in to the **Bitwarden Admin Console** (cloud: [vault.bitwarden.com](https://vault.bitwarden.com) or your self-hosted URL).\n2. Navigate to **Settings → Organisation info**.\n3. Scroll down to the **API key** section and click **View API key** (or **Rotate API key** if you need a new one).\n4. Note the **`client_id`** (format: `organization.<UUID>`) and **`client_secret`**.\n\n> **Note:** Enterprise and Teams plans are required to access the Public API."
+        },
+        {
+            "title": "STEP 2 – Deploy the Azure Function App",
+            "description": "Click **Deploy to Azure** and fill in the required parameters. The template creates all necessary Azure resources automatically.\n\n[![Deploy To Azure](https://aka.ms/deploytoazurebutton)](https://aka.ms/sentinel-BitwardenFunctionApp-azuredeploy)\n\n**Required parameters:**\n\n| Parameter | Description |\n|---|---|\n| `WorkspaceName` | Name of your Log Analytics / Microsoft Sentinel workspace |\n| `AppInsightsWorkspaceResourceID` | Full Resource ID of your Log Analytics workspace (from **Log Analytics workspace → Properties**) |\n| `BitwardenClientId` | Bitwarden organisation `client_id` from Step 1 |\n| `BitwardenClientSecret` | Bitwarden organisation `client_secret` from Step 1 |\n\n**Self-hosted / on-premises parameters (leave empty for Bitwarden Cloud):**\n\n| Parameter | Description |\n|---|---|\n| `BitwardenIdentityUrl` | Identity base URL, e.g. `https://bw.example.com/identity` |\n| `BitwardenApiUrl` | API base URL, e.g. `https://bw.example.com/api` |\n\n**Cloud region (ignored when self-hosted URLs are provided):**\n\n| Parameter | Description |\n|---|---|\n| `BitwardenCloudRegion` | `us` (default) or `eu` for Bitwarden Cloud EU (`bitwarden.eu`) |",
+            "instructions": [
+                {
+                    "parameters": {
+                        "fillWith": ["WorkspaceId"],
+                        "label": "Workspace ID"
+                    },
+                    "type": "CopyableLabel"
+                }
+            ]
+        },
+        {
+            "title": "STEP 3 – Verify data ingestion",
+            "description": "After the Function App is deployed, wait up to 10 minutes for the first timer execution. Then run the following queries in Microsoft Sentinel to verify data is arriving:\n\n```kql\nBitwardenEventLogs_CL\n| take 10\n```\n\n```kql\nBitwardenMembers_CL\n| take 10\n```\n\n```kql\nBitwardenGroups_CL\n| take 10\n```"
+        }
+    ]
+}

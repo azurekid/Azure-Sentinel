@@ -1,0 +1,635 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "FunctionName": {
+      "defaultValue": "Bitwarden",
+      "minLength": 1,
+      "maxLength": 11,
+      "type": "String",
+      "metadata": {
+        "description": "Base name for all created resources. Must be unique enough to avoid naming collisions (used in storage account and Function App names)."
+      }
+    },
+    "WorkspaceName": {
+      "type": "String",
+      "metadata": {
+        "description": "Name of the Log Analytics / Microsoft Sentinel workspace."
+      }
+    },
+    "AppInsightsWorkspaceResourceID": {
+      "type": "String",
+      "metadata": {
+        "description": "Full Resource ID of an existing Log Analytics workspace used for Application Insights telemetry (e.g. /subscriptions/.../resourceGroups/.../providers/Microsoft.OperationalInsights/workspaces/...)."
+      }
+    },
+    "BitwardenClientId": {
+      "type": "String",
+      "metadata": {
+        "description": "Bitwarden API client_id. Found in your Bitwarden organisation admin console under Settings → API Key."
+      }
+    },
+    "BitwardenClientSecret": {
+      "defaultValue": "",
+      "type": "SecureString",
+      "metadata": {
+        "description": "Bitwarden API client_secret. Provide this OR an existing Key Vault (see keyVaultName). When provided, a new Key Vault is created to store the secret."
+      }
+    },
+    "keyVaultName": {
+      "defaultValue": "",
+      "type": "String",
+      "metadata": {
+        "description": "Name of an existing Key Vault (same resource group) that already holds the Bitwarden client secret. Provide this OR BitwardenClientSecret, not both."
+      }
+    },
+    "keyVaultSecretName": {
+      "defaultValue": "",
+      "type": "String",
+      "metadata": {
+        "description": "Name of the secret in the Key Vault above. Only relevant when keyVaultName is provided. Defaults to 'bitwarden-client-secret'."
+      }
+    },
+    "BitwardenCloudRegion": {
+      "defaultValue": "us",
+      "allowedValues": ["us", "eu"],
+      "type": "String",
+      "metadata": {
+        "description": "Bitwarden Cloud region. Use 'us' for https://bitwarden.com (default) or 'eu' for https://bitwarden.eu. Ignored when BitwardenIdentityUrl and BitwardenApiUrl are both provided (self-hosted)."
+      }
+    },
+    "BitwardenIdentityUrl": {
+      "defaultValue": "",
+      "type": "String",
+      "metadata": {
+        "description": "Self-hosted only: full Bitwarden identity base URL, e.g. https://bw.example.com/identity. Leave empty for Bitwarden Cloud. Must be set together with BitwardenApiUrl."
+      }
+    },
+    "BitwardenApiUrl": {
+      "defaultValue": "",
+      "type": "String",
+      "metadata": {
+        "description": "Self-hosted only: full Bitwarden API base URL, e.g. https://bw.example.com/api. Leave empty for Bitwarden Cloud. Must be set together with BitwardenIdentityUrl."
+      }
+    },
+    "EventLookbackMinutes": {
+      "defaultValue": 5,
+      "type": "Int",
+      "metadata": {
+        "description": "Number of minutes to look back when querying Bitwarden events. Should match or slightly exceed the timer trigger interval."
+      }
+    },
+    "packageUri": {
+      "defaultValue": "https://aka.ms/sentinel-BitwardenFunctionApp-functionapp",
+      "type": "String",
+      "metadata": {
+        "description": "URI of the zip package containing the Function App code."
+      }
+    }
+  },
+  "variables": {
+    "FunctionName": "[concat(toLower(parameters('FunctionName')), uniqueString(resourceGroup().id))]",
+    "StorageAccountName": "[take(concat(toLower(parameters('FunctionName')), uniqueString(resourceGroup().id)), 24)]",
+    "identityName": "[format('uami-{0}', variables('FunctionName'))]",
+    "generatedKeyVaultName": "[take(concat('kv-', toLower(parameters('FunctionName')), uniqueString(resourceGroup().id)), 24)]",
+    "effectiveKeyVaultName": "[if(empty(parameters('keyVaultName')), variables('generatedKeyVaultName'), parameters('keyVaultName'))]",
+    "hasKeyVault": "[not(empty(parameters('keyVaultName')))]",
+    "hasClientSecret": "[not(empty(parameters('BitwardenClientSecret')))]",
+    "effectiveSecretName": "[if(empty(parameters('keyVaultSecretName')), 'bitwarden-client-secret', parameters('keyVaultSecretName'))]",
+    "dceName": "[concat('bitwarden-dce-', uniqueString(resourceGroup().id))]",
+    "dcrEventsName": "[concat('bitwarden-dcr-events-', uniqueString(resourceGroup().id))]",
+    "dcrMembersName": "[concat('bitwarden-dcr-members-', uniqueString(resourceGroup().id))]",
+    "dcrGroupsName": "[concat('bitwarden-dcr-groups-', uniqueString(resourceGroup().id))]",
+    "logWsResId": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('WorkspaceName'))]",
+    "storageSuffix": "[environment().suffixes.storage]",
+    "monitoringMetricsPublisherRoleId": "3913510d-42f4-4e42-8a64-420c390055eb"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+      "apiVersion": "2023-01-31",
+      "name": "[variables('identityName')]",
+      "location": "[resourceGroup().location]"
+    },
+    {
+      "type": "Microsoft.KeyVault/vaults",
+      "apiVersion": "2023-07-01",
+      "name": "[variables('generatedKeyVaultName')]",
+      "location": "[resourceGroup().location]",
+      "condition": "[not(variables('hasKeyVault'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName'))]"
+      ],
+      "properties": {
+        "sku": {
+          "family": "A",
+          "name": "standard"
+        },
+        "tenantId": "[subscription().tenantId]",
+        "accessPolicies": [
+          {
+            "objectId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName')), '2023-01-31').principalId]",
+            "permissions": {
+              "secrets": [
+                "get",
+                "list"
+              ]
+            },
+            "tenantId": "[subscription().tenantId]"
+          }
+        ],
+        "publicNetworkAccess": "Enabled",
+        "networkAcls": {
+          "defaultAction": "Allow",
+          "bypass": "AzureServices"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.KeyVault/vaults/accessPolicies",
+      "apiVersion": "2023-07-01",
+      "name": "[format('{0}/add', parameters('keyVaultName'))]",
+      "condition": "[variables('hasKeyVault')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName'))]"
+      ],
+      "properties": {
+        "accessPolicies": [
+          {
+            "objectId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName')), '2023-01-31').principalId]",
+            "permissions": {
+              "secrets": [
+                "get",
+                "list"
+              ]
+            },
+            "tenantId": "[subscription().tenantId]"
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.KeyVault/vaults/secrets",
+      "apiVersion": "2023-07-01",
+      "name": "[format('{0}/bitwarden-client-secret', variables('effectiveKeyVaultName'))]",
+      "condition": "[variables('hasClientSecret')]",
+      "dependsOn": [
+        "[if(variables('hasKeyVault'), resourceId('Microsoft.KeyVault/vaults/accessPolicies', parameters('keyVaultName'), 'add'), resourceId('Microsoft.KeyVault/vaults', variables('generatedKeyVaultName')))]"
+      ],
+      "properties": {
+        "value": "[parameters('BitwardenClientSecret')]"
+      }
+    },
+    {
+      "type": "Microsoft.Insights/dataCollectionEndpoints",
+      "apiVersion": "2021-09-01-preview",
+      "name": "[variables('dceName')]",
+      "location": "[resourceGroup().location]",
+      "properties": {
+        "networkAcls": {
+          "publicNetworkAccess": "Enabled"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/tables",
+      "apiVersion": "2022-10-01",
+      "name": "[concat(parameters('WorkspaceName'), '/BitwardenEventLogs_CL')]",
+      "properties": {
+        "schema": {
+          "name": "BitwardenEventLogs_CL",
+          "columns": [
+            { "name": "TimeGenerated", "type": "datetime" },
+            { "name": "eventType", "type": "int" },
+            { "name": "itemId", "type": "string" },
+            { "name": "collectionId", "type": "string" },
+            { "name": "groupId", "type": "string" },
+            { "name": "policyId", "type": "string" },
+            { "name": "memberId", "type": "string" },
+            { "name": "actingUserId", "type": "string" },
+            { "name": "installationId", "type": "string" },
+            { "name": "device", "type": "int" },
+            { "name": "ipAddress", "type": "string" }
+          ]
+        }
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/tables",
+      "apiVersion": "2022-10-01",
+      "name": "[concat(parameters('WorkspaceName'), '/BitwardenMembers_CL')]",
+      "properties": {
+        "retentionInDays": 4,
+        "totalRetentionInDays": 4,
+        "schema": {
+          "name": "BitwardenMembers_CL",
+          "columns": [
+            { "name": "TimeGenerated", "type": "datetime" },
+            { "name": "memberId", "type": "string" },
+            { "name": "userId", "type": "string" },
+            { "name": "email", "type": "string" },
+            { "name": "name", "type": "string" }
+          ]
+        }
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/tables",
+      "apiVersion": "2022-10-01",
+      "name": "[concat(parameters('WorkspaceName'), '/BitwardenGroups_CL')]",
+      "properties": {
+        "retentionInDays": 4,
+        "totalRetentionInDays": 4,
+        "schema": {
+          "name": "BitwardenGroups_CL",
+          "columns": [
+            { "name": "TimeGenerated", "type": "datetime" },
+            { "name": "groupId", "type": "string" },
+            { "name": "name", "type": "string" }
+          ]
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Insights/dataCollectionRules",
+      "apiVersion": "2021-09-01-preview",
+      "name": "[variables('dcrEventsName')]",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Insights/dataCollectionEndpoints', variables('dceName'))]",
+        "[resourceId('Microsoft.OperationalInsights/workspaces/tables', parameters('WorkspaceName'), 'BitwardenEventLogs_CL')]"
+      ],
+      "properties": {
+        "dataCollectionEndpointId": "[resourceId('Microsoft.Insights/dataCollectionEndpoints', variables('dceName'))]",
+        "streamDeclarations": {
+          "Custom-BitwardenEventLogs_CL": {
+            "columns": [
+              { "name": "TimeGenerated", "type": "datetime" },
+              { "name": "eventType", "type": "int" },
+              { "name": "itemId", "type": "string" },
+              { "name": "collectionId", "type": "string" },
+              { "name": "groupId", "type": "string" },
+              { "name": "policyId", "type": "string" },
+              { "name": "memberId", "type": "string" },
+              { "name": "actingUserId", "type": "string" },
+              { "name": "installationId", "type": "string" },
+              { "name": "device", "type": "int" },
+              { "name": "ipAddress", "type": "string" }
+            ]
+          }
+        },
+        "destinations": {
+          "logAnalytics": [
+            {
+              "workspaceResourceId": "[variables('logWsResId')]",
+              "name": "bitwardenWorkspace"
+            }
+          ]
+        },
+        "dataFlows": [
+          {
+            "streams": [ "Custom-BitwardenEventLogs_CL" ],
+            "destinations": [ "bitwardenWorkspace" ],
+            "transformKql": "source",
+            "outputStream": "Custom-BitwardenEventLogs_CL"
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Insights/dataCollectionRules",
+      "apiVersion": "2021-09-01-preview",
+      "name": "[variables('dcrMembersName')]",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Insights/dataCollectionEndpoints', variables('dceName'))]",
+        "[resourceId('Microsoft.OperationalInsights/workspaces/tables', parameters('WorkspaceName'), 'BitwardenMembers_CL')]"
+      ],
+      "properties": {
+        "dataCollectionEndpointId": "[resourceId('Microsoft.Insights/dataCollectionEndpoints', variables('dceName'))]",
+        "streamDeclarations": {
+          "Custom-BitwardenMembers_CL": {
+            "columns": [
+              { "name": "TimeGenerated", "type": "datetime" },
+              { "name": "memberId", "type": "string" },
+              { "name": "userId", "type": "string" },
+              { "name": "email", "type": "string" },
+              { "name": "name", "type": "string" }
+            ]
+          }
+        },
+        "destinations": {
+          "logAnalytics": [
+            {
+              "workspaceResourceId": "[variables('logWsResId')]",
+              "name": "bitwardenWorkspace"
+            }
+          ]
+        },
+        "dataFlows": [
+          {
+            "streams": [ "Custom-BitwardenMembers_CL" ],
+            "destinations": [ "bitwardenWorkspace" ],
+            "transformKql": "source",
+            "outputStream": "Custom-BitwardenMembers_CL"
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Insights/dataCollectionRules",
+      "apiVersion": "2021-09-01-preview",
+      "name": "[variables('dcrGroupsName')]",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Insights/dataCollectionEndpoints', variables('dceName'))]",
+        "[resourceId('Microsoft.OperationalInsights/workspaces/tables', parameters('WorkspaceName'), 'BitwardenGroups_CL')]"
+      ],
+      "properties": {
+        "dataCollectionEndpointId": "[resourceId('Microsoft.Insights/dataCollectionEndpoints', variables('dceName'))]",
+        "streamDeclarations": {
+          "Custom-BitwardenGroups_CL": {
+            "columns": [
+              { "name": "TimeGenerated", "type": "datetime" },
+              { "name": "groupId", "type": "string" },
+              { "name": "name", "type": "string" }
+            ]
+          }
+        },
+        "destinations": {
+          "logAnalytics": [
+            {
+              "workspaceResourceId": "[variables('logWsResId')]",
+              "name": "bitwardenWorkspace"
+            }
+          ]
+        },
+        "dataFlows": [
+          {
+            "streams": [ "Custom-BitwardenGroups_CL" ],
+            "destinations": [ "bitwardenWorkspace" ],
+            "transformKql": "source",
+            "outputStream": "Custom-BitwardenGroups_CL"
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "name": "[guid(variables('dcrEventsName'), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName')), variables('monitoringMetricsPublisherRoleId'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Insights/dataCollectionRules', variables('dcrEventsName'))]",
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName'))]"
+      ],
+      "scope": "[resourceId('Microsoft.Insights/dataCollectionRules', variables('dcrEventsName'))]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('monitoringMetricsPublisherRoleId'))]",
+        "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName')), '2023-01-31').principalId]",
+        "principalType": "ServicePrincipal"
+      }
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "name": "[guid(variables('dcrMembersName'), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName')), variables('monitoringMetricsPublisherRoleId'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Insights/dataCollectionRules', variables('dcrMembersName'))]",
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName'))]"
+      ],
+      "scope": "[resourceId('Microsoft.Insights/dataCollectionRules', variables('dcrMembersName'))]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('monitoringMetricsPublisherRoleId'))]",
+        "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName')), '2023-01-31').principalId]",
+        "principalType": "ServicePrincipal"
+      }
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "name": "[guid(variables('dcrGroupsName'), resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName')), variables('monitoringMetricsPublisherRoleId'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Insights/dataCollectionRules', variables('dcrGroupsName'))]",
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName'))]"
+      ],
+      "scope": "[resourceId('Microsoft.Insights/dataCollectionRules', variables('dcrGroupsName'))]",
+      "properties": {
+        "roleDefinitionId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', variables('monitoringMetricsPublisherRoleId'))]",
+        "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName')), '2023-01-31').principalId]",
+        "principalType": "ServicePrincipal"
+      }
+    },
+    {
+      "type": "Microsoft.Insights/components",
+      "apiVersion": "2020-02-02",
+      "name": "[variables('FunctionName')]",
+      "location": "[resourceGroup().location]",
+      "kind": "web",
+      "properties": {
+        "Application_Type": "web",
+        "WorkspaceResourceId": "[parameters('AppInsightsWorkspaceResourceID')]"
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2019-06-01",
+      "name": "[variables('StorageAccountName')]",
+      "location": "[resourceGroup().location]",
+      "sku": {
+        "name": "Standard_LRS",
+        "tier": "Standard"
+      },
+      "kind": "StorageV2",
+      "properties": {
+        "allowBlobPublicAccess": false,
+        "minimumTlsVersion": "TLS1_2",
+        "supportsHttpsTrafficOnly": true,
+        "networkAcls": {
+          "bypass": "AzureServices",
+          "virtualNetworkRules": [],
+          "ipRules": [],
+          "defaultAction": "Allow"
+        },
+        "encryption": {
+          "services": {
+            "file": { "keyType": "Account", "enabled": true },
+            "blob": { "keyType": "Account", "enabled": true }
+          },
+          "keySource": "Microsoft.Storage"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices",
+      "apiVersion": "2019-06-01",
+      "name": "[concat(variables('StorageAccountName'), '/default')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]"
+      ],
+      "properties": {
+        "cors": { "corsRules": [] },
+        "deleteRetentionPolicy": { "enabled": false }
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/fileServices",
+      "apiVersion": "2019-06-01",
+      "name": "[concat(variables('StorageAccountName'), '/default')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]"
+      ],
+      "properties": {
+        "cors": { "corsRules": [] }
+      }
+    },
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "apiVersion": "2022-03-01",
+      "name": "[variables('FunctionName')]",
+      "location": "[resourceGroup().location]",
+      "kind": "linux",
+      "sku": {
+        "name": "Y1",
+        "tier": "Dynamic"
+      },
+      "properties": {
+        "reserved": true
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "apiVersion": "2022-03-01",
+      "name": "[variables('FunctionName')]",
+      "location": "[resourceGroup().location]",
+      "kind": "functionapp,linux",
+      "dependsOn": [
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName'))]",
+        "[resourceId('Microsoft.Web/serverfarms', variables('FunctionName'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]",
+        "[resourceId('Microsoft.Insights/components', variables('FunctionName'))]",
+        "[resourceId('Microsoft.Insights/dataCollectionRules', variables('dcrEventsName'))]",
+        "[resourceId('Microsoft.Insights/dataCollectionRules', variables('dcrMembersName'))]",
+        "[resourceId('Microsoft.Insights/dataCollectionRules', variables('dcrGroupsName'))]",
+        "[resourceId('Microsoft.Insights/dataCollectionEndpoints', variables('dceName'))]",
+        "[if(variables('hasKeyVault'), resourceId('Microsoft.KeyVault/vaults/accessPolicies', parameters('keyVaultName'), 'add'), resourceId('Microsoft.KeyVault/vaults', variables('generatedKeyVaultName')))]"
+      ],
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName'))]": {}
+        }
+      },
+      "properties": {
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('FunctionName'))]",
+        "httpsOnly": true,
+        "reserved": true,
+        "keyVaultReferenceIdentity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName'))]",
+        "siteConfig": {
+          "linuxFxVersion": "Python|3.11",
+          "minTlsVersion": "1.2",
+          "ftpsState": "Disabled",
+          "appSettings": [
+            {
+              "name": "FUNCTIONS_EXTENSION_VERSION",
+              "value": "~4"
+            },
+            {
+              "name": "FUNCTIONS_WORKER_RUNTIME",
+              "value": "python"
+            },
+            {
+              "name": "AzureWebJobsStorage",
+              "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('StorageAccountName'), ';AccountKey=', listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName')), '2019-06-01').keys[0].value, ';EndpointSuffix=', toLower(variables('storageSuffix')))]"
+            },
+            {
+              "name": "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING",
+              "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('StorageAccountName'), ';AccountKey=', listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName')), '2019-06-01').keys[0].value, ';EndpointSuffix=', toLower(variables('storageSuffix')))]"
+            },
+            {
+              "name": "WEBSITE_CONTENTSHARE",
+              "value": "[toLower(variables('FunctionName'))]"
+            },
+            {
+              "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+              "value": "[reference(resourceId('Microsoft.Insights/components', variables('FunctionName')), '2020-02-02').InstrumentationKey]"
+            },
+            {
+              "name": "APPLICATIONINSIGHTS_CONNECTION_STRING",
+              "value": "[reference(resourceId('Microsoft.Insights/components', variables('FunctionName')), '2020-02-02').ConnectionString]"
+            },
+            {
+              "name": "AZURE_CLIENT_ID",
+              "value": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName')), '2023-01-31').clientId]"
+            },
+            {
+              "name": "AZURE_TENANT_ID",
+              "value": "[subscription().tenantId]"
+            },
+            {
+              "name": "AZURE_DCE_ENDPOINT",
+              "value": "[reference(resourceId('Microsoft.Insights/dataCollectionEndpoints', variables('dceName')), '2021-09-01-preview').logsIngestion.endpoint]"
+            },
+            {
+              "name": "AZURE_DCR_EVENTS_IMMUTABLEID",
+              "value": "[reference(resourceId('Microsoft.Insights/dataCollectionRules', variables('dcrEventsName')), '2021-09-01-preview').immutableId]"
+            },
+            {
+              "name": "AZURE_DCR_MEMBERS_IMMUTABLEID",
+              "value": "[reference(resourceId('Microsoft.Insights/dataCollectionRules', variables('dcrMembersName')), '2021-09-01-preview').immutableId]"
+            },
+            {
+              "name": "AZURE_DCR_GROUPS_IMMUTABLEID",
+              "value": "[reference(resourceId('Microsoft.Insights/dataCollectionRules', variables('dcrGroupsName')), '2021-09-01-preview').immutableId]"
+            },
+            {
+              "name": "BITWARDEN_CLIENT_ID",
+              "value": "[parameters('BitwardenClientId')]"
+            },
+            {
+              "name": "KEY_VAULT_URI",
+              "value": "[reference(resourceId('Microsoft.KeyVault/vaults', variables('effectiveKeyVaultName')), '2023-07-01').vaultUri]"
+            },
+            {
+              "name": "KEY_VAULT_SECRET_NAME",
+              "value": "[variables('effectiveSecretName')]"
+            },
+            {
+              "name": "BITWARDEN_CLOUD_REGION",
+              "value": "[parameters('BitwardenCloudRegion')]"
+            },
+            {
+              "name": "BITWARDEN_IDENTITY_URL",
+              "value": "[parameters('BitwardenIdentityUrl')]"
+            },
+            {
+              "name": "BITWARDEN_API_URL",
+              "value": "[parameters('BitwardenApiUrl')]"
+            },
+            {
+              "name": "BITWARDEN_EVENT_LOOKBACK_MINUTES",
+              "value": "[string(parameters('EventLookbackMinutes'))]"
+            },
+            {
+              "name": "WEBSITE_RUN_FROM_PACKAGE",
+              "value": "[parameters('packageUri')]"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "FunctionAppName": {
+      "type": "string",
+      "value": "[variables('FunctionName')]"
+    },
+    "KeyVaultName": {
+      "type": "string",
+      "value": "[variables('effectiveKeyVaultName')]"
+    },
+    "DCEEndpoint": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Insights/dataCollectionEndpoints', variables('dceName')), '2021-09-01-preview').logsIngestion.endpoint]"
+    }
+  }
+}
