@@ -1,0 +1,27 @@
+{
+  "name": "NextDNSAnalytics_CL",
+  "type": "Microsoft.OperationalInsights/workspaces/tables",
+  "apiVersion": "2022-10-01",
+  "tags": {
+    "StreamName": "Custom-NextDNSAnalytics_CL",
+    "DataSource": "NextDNSConnector",
+    "Category": "Security"
+  },
+  "properties": {
+    "retentionInDays": 30,
+    "totalRetentionInDays": 30,
+    "schema": {
+      "name": "NextDNSAnalytics_CL",
+      "description": "NextDNS analytics aggregate events",
+      "columns": [
+        { "name": "TimeGenerated", "type": "datetime" },
+        { "name": "profileId", "type": "string" },
+        { "name": "metric", "type": "string" },
+        { "name": "name", "type": "string" },
+        { "name": "status", "type": "string" },
+        { "name": "queryCount", "type": "long" },
+        { "name": "percentage", "type": "real" }
+      ]
+    }
+  }
+}

@@ -1,0 +1,113 @@
+[
+  {
+    "type": "Microsoft.SecurityInsights/dataConnectors",
+    "apiVersion": "2022-10-01-preview",
+    "name": "[[concat('parameters('workspace')', '/Microsoft.SecurityInsights/','NextDNSLogs_' , uniqueString(parameters('friendlyName'), parameters('profileId')) )]",
+    "location": "{{location}}",
+    "kind": "RestApiPoller",
+    "properties": {
+      "auth": {
+        "type": "APIKey",
+        "ApiKey": "[[parameters('apiKey')]",
+        "ApiKeyName": "X-Api-Key",
+        "ApiKeyIdentifier": ""
+      },
+      "request": {
+        "apiEndpoint": "[[concat('https://api.nextdns.io/profiles/', parameters('profileId'), '/logs')]",
+        "httpMethod": "GET",
+        "rateLimitQPS": 2,
+        "queryWindowInMin": 5,
+        "queryTimeFormat": "yyyy-MM-ddTHH:mm:ssZ",
+        "retryCount": 3,
+        "timeoutInSeconds": 45,
+        "headers": {
+          "Accept": "application/json"
+        },
+        "queryParameters": {
+          "sort": "asc",
+          "limit": "1000",
+          "raw": "1"
+        },
+        "startTimeAttributeName": "from",
+        "endTimeAttributeName": "to"
+      },
+      "response": {
+        "eventsJsonPaths": [
+          "$.data[*]"
+        ],
+        "format": "json"
+      },
+      "paging": {
+        "pagingType": "NextPageToken",
+        "nextPageTokenJsonPath": "$.meta.pagination.cursor",
+        "nextPageParaName": "cursor"
+      },
+      "connectorDefinitionName": "NextDNSConnector",
+      "dataType": "NextDNS_CL",
+      "dcrConfig": {
+        "streamName": "Custom-NextDNS_CL",
+        "dataCollectionEndpoint": "{{dataCollectionEndpoint}}",
+        "dataCollectionRuleImmutableId": "{{dataCollectionRuleImmutableId}}"
+      },
+      "addOnAttributes": {
+        "friendlyName": "[[parameters('friendlyName')]",
+        "aliasName": "NextDNS_Parser"
+      }
+    },
+    "condition": "[[and(not(empty(parameters('apiKey'))), not(equals(parameters('apiKey'), 'apiKey')))]"
+  },
+  {
+    "type": "Microsoft.SecurityInsights/dataConnectors",
+    "apiVersion": "2022-10-01-preview",
+    "name": "[[concat('parameters('workspace')', '/Microsoft.SecurityInsights/','NextDNSAnalytics_' , uniqueString(parameters('friendlyName'), parameters('profileId'), parameters('metric')) )]",
+    "location": "{{location}}",
+    "kind": "RestApiPoller",
+    "properties": {
+      "auth": {
+        "type": "APIKey",
+        "ApiKey": "[[parameters('apiKey')]",
+        "ApiKeyName": "X-Api-Key",
+        "ApiKeyIdentifier": ""
+      },
+      "request": {
+        "apiEndpoint": "[[concat('https://api.nextdns.io/profiles/', parameters('profileId'), '/analytics/', parameters('metric'))]",
+        "httpMethod": "GET",
+        "rateLimitQPS": 2,
+        "queryWindowInMin": 60,
+        "queryTimeFormat": "yyyy-MM-ddTHH:mm:ssZ",
+        "retryCount": 3,
+        "timeoutInSeconds": 45,
+        "headers": {
+          "Accept": "application/json"
+        },
+        "queryParameters": {
+          "limit": "100"
+        },
+        "startTimeAttributeName": "from",
+        "endTimeAttributeName": "to"
+      },
+      "response": {
+        "eventsJsonPaths": [
+          "$.data[*]"
+        ],
+        "format": "json",
+        "additionalFields": {
+          "metric": "[[parameters('metric')]",
+          "profileId": "[[parameters('profileId')]"
+        }
+      },
+      "connectorDefinitionName": "NextDNSConnector",
+      "dataType": "NextDNSAnalytics_CL",
+      "dcrConfig": {
+        "streamName": "Custom-NextDNSAnalytics_CL",
+        "dataCollectionEndpoint": "{{dataCollectionEndpoint}}",
+        "dataCollectionRuleImmutableId": "{{dataCollectionRuleImmutableId}}"
+      },
+      "addOnAttributes": {
+        "friendlyName": "[[concat(parameters('friendlyName'), ' - ', parameters('metric'))]",
+        "aliasName": "NextDNSAnalytics_Parser"
+      }
+    },
+    "condition": "[[and(not(empty(parameters('apiKey'))), not(equals(parameters('apiKey'), 'apiKey')))]"
+  }
+]

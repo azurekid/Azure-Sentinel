@@ -1,0 +1,120 @@
+{
+  "name": "NextDNSConnector",
+  "apiVersion": "2025-07-01-preview",
+  "type": "Microsoft.SecurityInsights/dataConnectorDefinitions",
+  "location": "{{location}}",
+  "kind": "Customizable",
+  "properties": {
+    "connectorUiConfig": {
+      "id": "NextDNSConnector",
+      "title": "NextDNS (via Codeless Connector Framework)",
+      "publisher": "Rogier Dijkman",
+      "descriptionMarkdown": "Ingest NextDNS logs and analytics aggregates from one or more profiles into Microsoft Sentinel.",
+      "graphQueriesTableName": "NextDNS_Parser",
+      "graphQueries": [
+        {
+          "metricName": "Total NextDNS Data",
+          "legend": "NextDNS",
+          "baseQuery": "union NextDNS_Parser(), NextDNSAnalytics_Parser() | summarize Count=count()"
+        }
+      ],
+      "sampleQueries": [
+        {
+          "description": "Top blocked domains",
+          "query": "NextDNS_Parser() | where EventResult =~ 'Failure' | summarize Count=count() by DnsQuery | top 20 by Count desc"
+        },
+        {
+          "description": "Blocking reasons breakdown",
+          "query": "NextDNSAnalytics_Parser() | where metric == 'reasons' | summarize TotalBlocked=sum(queryCount) by itemName, profileId | sort by TotalBlocked desc"
+        }
+      ],
+      "dataTypes": [
+        {
+          "name": "NextDNS_CL",
+          "lastDataReceivedQuery": "NextDNS_CL | summarize Time=max(TimeGenerated) | where isnotempty(Time)"
+        },
+        {
+          "name": "NextDNSAnalytics_CL",
+          "lastDataReceivedQuery": "NextDNSAnalytics_CL | summarize Time=max(TimeGenerated) | where isnotempty(Time)"
+        }
+      ],
+      "connectivityCriteria": [
+        {
+          "type": "HasDataConnectors"
+        },
+        {
+          "type": "IsConnectedQuery",
+          "value": [
+            "union NextDNS_Parser(), NextDNSAnalytics_Parser() | where TimeGenerated > ago(1h) | take 1"
+          ]
+        }
+      ],
+      "availability": {
+        "isPreview": true,
+        "status": 1
+      },
+      "permissions": {
+        "resourceProvider": [
+          {
+            "provider": "Microsoft.OperationalInsights/workspaces",
+            "permissionsDisplayText": "Read and Write permissions are required.",
+            "providerDisplayName": "Workspace",
+            "scope": "Workspace",
+            "requiredPermissions": {
+              "write": true,
+              "read": true,
+              "delete": true,
+              "action": false
+            }
+          }
+        ],
+        "customs": [
+          {
+            "name": "NextDNS API access",
+            "description": "A NextDNS API key is required. Configure one or more profile IDs to collect logs and analytics endpoints."
+          }
+        ]
+      },
+      "instructionSteps": [
+        {
+          "title": "Connection Information",
+          "description": "Connection details for NextDNS REST API pollers.",
+          "instructions": [
+            {
+              "type": "Markdown",
+              "parameters": {
+                "content": "- Use a valid NextDNS API key.\n- Provide one or more profile IDs.\n- The connector creates separate pollers for logs and analytics endpoints per profile."
+              }
+            }
+          ]
+        },
+        {
+          "instructions": [
+            {
+              "type": "DataConnectorsGrid",
+              "parameters": {
+                "mapping": [
+                  {
+                    "columnName": "Profile",
+                    "columnValue": "properties.addOnAttributes.friendlyName"
+                  },
+                  {
+                    "columnName": "Alias",
+                    "columnValue": "properties.addOnAttributes.aliasName"
+                  },
+                  {
+                    "columnName": "URL",
+                    "columnValue": "properties.request.apiEndpoint"
+                  }
+                ],
+                "menuItems": [
+                  "DeleteConnector"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

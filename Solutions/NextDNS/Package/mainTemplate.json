@@ -1,0 +1,911 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "author": "Rogier Dijkman",
+    "comments": "Solution template for NextDNS"
+  },
+  "parameters": {
+    "location": {
+      "type": "string",
+      "minLength": 1,
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Not used directly. Added for Microsoft solution packaging validation parity."
+      }
+    },
+    "workspace-location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "Region to deploy solution resources."
+      }
+    },
+    "workspace": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "Workspace name for Log Analytics where Microsoft Sentinel is enabled."
+      }
+    },
+    "workspaceName": {
+      "type": "string",
+      "defaultValue": "[parameters('workspace')]",
+      "metadata": {
+        "description": "Workspace name alias used by embedded connector templates."
+      }
+    },
+    "resourceGroupName": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().name]",
+      "metadata": {
+        "description": "Resource group where the workspace is deployed."
+      }
+    },
+    "subscription": {
+      "type": "string",
+      "defaultValue": "[last(split(subscription().id, '/'))]",
+      "metadata": {
+        "description": "Subscription id for deployment scope."
+      }
+    },
+    "profiles": {
+      "type": "array",
+      "defaultValue": [
+        "1d96ff",
+        "9387a4"
+      ]
+    },
+    "nextDnsApiKeySecretUri": {
+      "type": "securestring",
+      "defaultValue": "nextdns-api-key"
+    }
+  },
+  "variables": {
+    "email": "support@example.com",
+    "_email": "[variables('email')]",
+    "_solutionName": "NextDNS",
+    "_solutionVersion": "1.0.0",
+    "solutionId": "azuresentinel.azure-sentinel-solution-nextdns",
+    "_solutionId": "[variables('solutionId')]",
+    "workspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspace'))]",
+    "connectorName": "NextDNSConnector",
+    "tableName": "NextDNS_CL",
+    "analyticsTableName": "NextDNSAnalytics_CL",
+    "customTable": "Custom-NextDNS_CL",
+    "customAnalyticsTable": "Custom-NextDNSAnalytics_CL",
+    "functionName": "nextdns",
+    "regionShortCodes": {
+      "eastus": "eus",
+      "eastus2": "eus2",
+      "westus": "wus",
+      "westus2": "wus2",
+      "westus3": "wus3",
+      "centralus": "cus",
+      "northcentralus": "ncus",
+      "southcentralus": "scus",
+      "canadacentral": "cac",
+      "canadaeast": "cae",
+      "brazilsouth": "brs",
+      "northeurope": "neu",
+      "westeurope": "weu",
+      "uksouth": "uks",
+      "ukwest": "ukw",
+      "francecentral": "frc",
+      "francesouth": "frs",
+      "germanywestcentral": "gwc",
+      "swedencentral": "swc",
+      "swedensouth": "sws",
+      "norwayeast": "nwe",
+      "switzerlandnorth": "chn",
+      "switzerlandwest": "chw",
+      "italynorth": "itn",
+      "spaincentral": "spc",
+      "polandcentral": "plc",
+      "uaenorth": "uan",
+      "qatarcentral": "qac",
+      "southafricanorth": "zan",
+      "australiaeast": "aue",
+      "australiasoutheast": "ause",
+      "australiacentral": "auc",
+      "japaneast": "jpe",
+      "japanwest": "jpw",
+      "koreacentral": "krc",
+      "koreasouth": "krs",
+      "eastasia": "eas",
+      "southeastasia": "sea",
+      "centralindia": "cin",
+      "southindia": "sin",
+      "westindia": "win"
+    },
+    "normalizedLocation": "[toLower(replace(resourceGroup().location, ' ', ''))]",
+    "derivedLocationShortCode": "[if(contains(variables('regionShortCodes'), variables('normalizedLocation')), variables('regionShortCodes')[variables('normalizedLocation')], take(variables('normalizedLocation'), 3))]",
+    "dceName": "[toLower(format('dce-{0}-{1}-{2}', variables('functionName'), variables('derivedLocationShortCode'), '01'))]",
+    "dcrName": "[toLower(format('dcr-{0}-{1}-{2}', variables('functionName'), variables('derivedLocationShortCode'), '01'))]",
+    "parserObject1": {
+      "_parserName1": "[concat(parameters('workspace'), '/NextDNS_Parser')]",
+      "_parserId1": "[resourceId('Microsoft.OperationalInsights/workspaces/savedSearches', parameters('workspace'), 'NextDNS_Parser')]",
+      "parserTemplateSpecName1": "[concat(parameters('workspace'), '/Microsoft.SecurityInsights/', concat(parameters('workspace'), '-pr-', uniqueString('NextDNS_Parser-Parser')))]",
+      "parserVersion1": "1.0.0",
+      "parserContentId1": "NextDNS_Parser-Parser",
+      "parserContentProductId1": "[concat(take(variables('_solutionId'), 50), '-pr-', uniqueString(concat(variables('_solutionId'), '-Parser-', 'NextDNS_Parser-Parser', '-', '1.0.0')))]"
+    },
+    "parserObject2": {
+      "_parserName2": "[concat(parameters('workspace'), '/NextDNSAnalytics_Parser')]",
+      "_parserId2": "[resourceId('Microsoft.OperationalInsights/workspaces/savedSearches', parameters('workspace'), 'NextDNSAnalytics_Parser')]",
+      "parserTemplateSpecName2": "[concat(parameters('workspace'), '/Microsoft.SecurityInsights/', concat(parameters('workspace'), '-pr-', uniqueString('NextDNSAnalytics_Parser-Parser')))]",
+      "parserVersion2": "1.0.0",
+      "parserContentId2": "NextDNSAnalytics_Parser-Parser",
+      "parserContentProductId2": "[concat(take(variables('_solutionId'), 50), '-pr-', uniqueString(concat(variables('_solutionId'), '-Parser-', 'NextDNSAnalytics_Parser-Parser', '-', '1.0.0')))]"
+    },
+    "dataConnectorCCPVersion": "1.0.0",
+    "_dataConnectorContentIdConnectorDefinition1": "NextDNSConnector",
+    "dataConnectorTemplateNameConnectorDefinition1": "[concat(parameters('workspace'), '-dc-', uniqueString(variables('_dataConnectorContentIdConnectorDefinition1')))]",
+    "_dataConnectorcontentProductIdConnectorDefinition1": "[concat(take(variables('_solutionId'), 50), '-dc-', uniqueString(concat(variables('_solutionId'), '-DataConnector-', variables('_dataConnectorContentIdConnectorDefinition1'), '-', variables('dataConnectorCCPVersion'))))]",
+    "_dataConnectorContentIdConnections1": "NextDNSConnectorConnections",
+    "dataConnectorTemplateNameConnections1": "[concat(parameters('workspace'), '-dc-', uniqueString(variables('_dataConnectorContentIdConnections1')))]",
+    "_dataConnectorcontentProductIdConnections1": "[concat(take(variables('_solutionId'), 50), '-rdc-', uniqueString(concat(variables('_solutionId'), '-ResourcesDataConnector-', variables('_dataConnectorContentIdConnections1'), '-', variables('dataConnectorCCPVersion'))))]",
+    "dataCollectionEndpointId1": "[concat('/subscriptions/', parameters('subscription'), '/resourceGroups/', parameters('resourceGroupName'), '/providers/Microsoft.Insights/dataCollectionEndpoints/', variables('dceName'))]",
+    "dceResourceId": "[variables('dataCollectionEndpointId1')]",
+    "dcrResourceId": "[concat('/subscriptions/', parameters('subscription'), '/resourceGroups/', parameters('resourceGroupName'), '/providers/Microsoft.Insights/dataCollectionRules/', variables('dcrName'))]",
+    "_solutioncontentProductId": "[concat(take(variables('_solutionId'), 50), '-sl-', uniqueString(concat(variables('_solutionId'), '-Solution-', variables('_solutionVersion'))))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/contentTemplates",
+      "apiVersion": "2023-04-01-preview",
+      "name": "[variables('parserObject1').parserTemplateSpecName1]",
+      "location": "[parameters('workspace-location')]",
+      "properties": {
+        "contentId": "[variables('parserObject1').parserContentId1]",
+        "displayName": "NextDNS_Parser",
+        "contentKind": "Parser",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {},
+          "variables": {},
+          "resources": [
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+              "apiVersion": "2025-07-01",
+              "name": "[variables('parserObject1')._parserName1]",
+              "location": "[parameters('workspace-location')]",
+              "properties": {
+                "eTag": "*",
+                "displayName": "NextDNS_Parser",
+                "category": "Microsoft Sentinel Parser",
+                "functionAlias": "NextDNS_Parser",
+                "query": "union isfuzzy=true NextDNS_CL",
+                "functionParameters": "",
+                "version": 2
+              }
+            }
+          ]
+        },
+        "packageKind": "Solution",
+        "packageVersion": "[variables('_solutionVersion')]",
+        "packageName": "[variables('_solutionName')]",
+        "contentProductId": "[variables('parserObject1').parserContentProductId1]",
+        "packageId": "[variables('_solutionId')]",
+        "contentSchemaVersion": "3.0.0",
+        "version": "[variables('parserObject1').parserVersion1]"
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/contentTemplates",
+      "apiVersion": "2023-04-01-preview",
+      "name": "[variables('parserObject2').parserTemplateSpecName2]",
+      "location": "[parameters('workspace-location')]",
+      "properties": {
+        "contentId": "[variables('parserObject2').parserContentId2]",
+        "displayName": "NextDNSAnalytics_Parser",
+        "contentKind": "Parser",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {},
+          "variables": {},
+          "resources": [
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+              "apiVersion": "2025-07-01",
+              "name": "[variables('parserObject2')._parserName2]",
+              "location": "[parameters('workspace-location')]",
+              "properties": {
+                "eTag": "*",
+                "displayName": "NextDNSAnalytics_Parser",
+                "category": "Microsoft Sentinel Parser",
+                "functionAlias": "NextDNSAnalytics_Parser",
+                "query": "union isfuzzy=true NextDNSAnalytics_CL",
+                "functionParameters": "",
+                "version": 2
+              }
+            }
+          ]
+        },
+        "packageKind": "Solution",
+        "packageVersion": "[variables('_solutionVersion')]",
+        "packageName": "[variables('_solutionName')]",
+        "contentProductId": "[variables('parserObject2').parserContentProductId2]",
+        "packageId": "[variables('_solutionId')]",
+        "contentSchemaVersion": "3.0.0",
+        "version": "[variables('parserObject2').parserVersion2]"
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/contentTemplates",
+      "apiVersion": "2023-04-01-preview",
+      "name": "[concat(parameters('workspace'), '/Microsoft.SecurityInsights/', variables('dataConnectorTemplateNameConnectorDefinition1'), variables('dataConnectorCCPVersion'))]",
+      "location": "[parameters('workspace-location')]",
+      "properties": {
+        "contentId": "[variables('_dataConnectorContentIdConnectorDefinition1')]",
+        "displayName": "NextDNS (via Codeless Connector Framework)",
+        "contentKind": "DataConnector",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {},
+          "variables": {},
+          "resources": [
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/dataConnectorDefinitions",
+              "apiVersion": "2022-09-01-preview",
+              "name": "[concat(parameters('workspace'), '/Microsoft.SecurityInsights/', variables('_dataConnectorContentIdConnectorDefinition1'))]",
+              "location": "[parameters('workspace-location')]",
+              "kind": "Customizable",
+              "properties": {
+                "connectorUiConfig": {
+                  "id": "NextDNSConnector",
+                  "title": "NextDNS (via Codeless Connector Framework)",
+                  "publisher": "Rogier Dijkman",
+                  "descriptionMarkdown": "Ingest NextDNS logs from one or more profiles into Microsoft Sentinel.",
+                  "connectivityCriteria": [
+                    { "type": "HasDataConnectors" }
+                  ]
+                }
+              }
+            }
+          ]
+        },
+        "packageKind": "Solution",
+        "packageVersion": "[variables('_solutionVersion')]",
+        "packageName": "[variables('_solutionName')]",
+        "contentProductId": "[variables('_dataConnectorcontentProductIdConnectorDefinition1')]",
+        "packageId": "[variables('_solutionId')]",
+        "contentSchemaVersion": "3.0.0",
+        "version": "[variables('dataConnectorCCPVersion')]"
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/contentTemplates",
+      "apiVersion": "2023-04-01-preview",
+      "name": "[concat(parameters('workspace'), '/Microsoft.SecurityInsights/', variables('dataConnectorTemplateNameConnections1'), variables('dataConnectorCCPVersion'))]",
+      "location": "[parameters('workspace-location')]",
+      "properties": {
+        "contentId": "[variables('_dataConnectorContentIdConnections1')]",
+        "displayName": "NextDNS (via Codeless Connector Framework)",
+        "contentKind": "ResourcesDataConnector",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {
+            "workspaceName": {
+              "type": "string",
+              "defaultValue": "[parameters('workspace')]"
+            },
+            "profiles": {
+              "type": "array",
+              "defaultValue": "[parameters('profiles')]"
+            },
+            "nextDnsApiKeySecretUri": {
+              "type": "securestring",
+              "defaultValue": "[parameters('nextDnsApiKeySecretUri')]"
+            }
+          },
+          "variables": {
+            "tableName": "NextDNS_CL",
+            "analyticsTableName": "NextDNSAnalytics_CL",
+            "customTable": "Custom-NextDNS_CL",
+            "customAnalyticsTable": "Custom-NextDNSAnalytics_CL",
+            "workspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName'))]",
+            "connectorName": "NextDNSConnector",
+            "functionName": "nextdns",
+            "regionShortCodes": {
+              "eastus": "eus",
+              "eastus2": "eus2",
+              "westus": "wus",
+              "westus2": "wus2",
+              "westus3": "wus3",
+              "centralus": "cus",
+              "northcentralus": "ncus",
+              "southcentralus": "scus",
+              "canadacentral": "cac",
+              "canadaeast": "cae",
+              "brazilsouth": "brs",
+              "northeurope": "neu",
+              "westeurope": "weu",
+              "uksouth": "uks",
+              "ukwest": "ukw",
+              "francecentral": "frc",
+              "francesouth": "frs",
+              "germanywestcentral": "gwc",
+              "swedencentral": "swc",
+              "swedensouth": "sws",
+              "norwayeast": "nwe",
+              "switzerlandnorth": "chn",
+              "switzerlandwest": "chw",
+              "italynorth": "itn",
+              "spaincentral": "spc",
+              "polandcentral": "plc",
+              "uaenorth": "uan",
+              "qatarcentral": "qac",
+              "southafricanorth": "zan",
+              "australiaeast": "aue",
+              "australiasoutheast": "ause",
+              "australiacentral": "auc",
+              "japaneast": "jpe",
+              "japanwest": "jpw",
+              "koreacentral": "krc",
+              "koreasouth": "krs",
+              "eastasia": "eas",
+              "southeastasia": "sea",
+              "centralindia": "cin",
+              "southindia": "sin",
+              "westindia": "win"
+            },
+            "normalizedLocation": "[toLower(replace(resourceGroup().location, ' ', ''))]",
+            "derivedLocationShortCode": "[if(contains(variables('regionShortCodes'), variables('normalizedLocation')), variables('regionShortCodes')[variables('normalizedLocation')], take(variables('normalizedLocation'), 3))]",
+            "dceName": "[toLower(format('dce-{0}-{1}-{2}', variables('functionName'), variables('derivedLocationShortCode'), '01'))]",
+            "dcrName": "[toLower(format('dcr-{0}-{1}-{2}', variables('functionName'), variables('derivedLocationShortCode'), '01'))]",
+            "dceResourceId": "[resourceId('Microsoft.Insights/dataCollectionEndpoints', variables('dceName'))]",
+            "dcrResourceId": "[resourceId('Microsoft.Insights/dataCollectionRules', variables('dcrName'))]"
+          },
+          "resources": [
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/tables",
+              "apiVersion": "2022-10-01",
+              "name": "[concat(parameters('workspaceName'), '/', variables('tableName'))]",
+              "tags": {
+                "StreamName": "[variables('customTable')]",
+                "DataSource": "[variables('connectorName')]",
+                "Category": "Security"
+              },
+              "properties": {
+                "plan": "Analytics",
+                "schema": {
+                  "name": "[variables('tableName')]",
+                  "columns": [
+                    { "name": "TimeGenerated", "type": "DateTime" },
+                    { "name": "profileId", "type": "String" },
+                    { "name": "domain", "type": "String" },
+                    { "name": "root", "type": "String" },
+                    { "name": "status", "type": "String" },
+                    { "name": "queryType", "type": "String" },
+                    { "name": "protocol", "type": "String" },
+                    { "name": "encrypted", "type": "Boolean" },
+                    { "name": "clientIp", "type": "String" },
+                    { "name": "deviceName", "type": "String" },
+                    { "name": "deviceId", "type": "String" },
+                    { "name": "deviceModel", "type": "String" },
+                    { "name": "client", "type": "String" },
+                    { "name": "tracker", "type": "String" },
+                    { "name": "reasons", "type": "String" },
+                    { "name": "device", "type": "Dynamic" },
+                    { "name": "RawData", "type": "Dynamic" }
+                  ]
+                },
+                "retentionInDays": 30,
+                "totalRetentionInDays": 30
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/tables",
+              "apiVersion": "2022-10-01",
+              "name": "[concat(parameters('workspaceName'), '/', variables('analyticsTableName'))]",
+              "tags": {
+                "StreamName": "[variables('customAnalyticsTable')]",
+                "DataSource": "[variables('connectorName')]",
+                "Category": "Security"
+              },
+              "properties": {
+                "plan": "Analytics",
+                "schema": {
+                  "name": "[variables('analyticsTableName')]",
+                  "columns": [
+                    { "name": "TimeGenerated", "type": "DateTime" },
+                    { "name": "profileId", "type": "String" },
+                    { "name": "metric", "type": "String" },
+                    { "name": "name", "type": "String" },
+                    { "name": "status", "type": "String" },
+                    { "name": "queryCount", "type": "Long" },
+                    { "name": "percentage", "type": "Real" }
+                  ]
+                },
+                "retentionInDays": 30,
+                "totalRetentionInDays": 30
+              }
+            },
+            {
+              "type": "Microsoft.Insights/dataCollectionEndpoints",
+              "apiVersion": "2021-04-01",
+              "name": "[variables('dceName')]",
+              "location": "[resourceGroup().location]",
+              "properties": {
+                "networkAcls": {
+                  "publicNetworkAccess": "Enabled"
+                }
+              }
+            },
+            {
+              "type": "Microsoft.Insights/dataCollectionRules",
+              "apiVersion": "2022-06-01",
+              "name": "[variables('dcrName')]",
+              "location": "[resourceGroup().location]",
+              "dependsOn": [
+                "[resourceId('Microsoft.Insights/dataCollectionEndpoints', variables('dceName'))]",
+                "[resourceId('Microsoft.OperationalInsights/workspaces/tables', parameters('workspaceName'), variables('tableName'))]",
+                "[resourceId('Microsoft.OperationalInsights/workspaces/tables', parameters('workspaceName'), variables('analyticsTableName'))]"
+              ],
+              "properties": {
+                "dataCollectionEndpointId": "[resourceId('Microsoft.Insights/dataCollectionEndpoints', variables('dceName'))]",
+                "streamDeclarations": "[createObject(variables('customTable'), createObject('columns', createArray(createObject('name', 'timestamp', 'type', 'string'), createObject('name', 'profileId', 'type', 'string'), createObject('name', 'domain', 'type', 'string'), createObject('name', 'root', 'type', 'string'), createObject('name', 'status', 'type', 'string'), createObject('name', 'type', 'type', 'string'), createObject('name', 'protocol', 'type', 'string'), createObject('name', 'encrypted', 'type', 'boolean'), createObject('name', 'clientIp', 'type', 'string'), createObject('name', 'client', 'type', 'string'), createObject('name', 'tracker', 'type', 'string'), createObject('name', 'deviceName', 'type', 'string'), createObject('name', 'device', 'type', 'dynamic'), createObject('name', 'reasons', 'type', 'dynamic'))), variables('customAnalyticsTable'), createObject('columns', createArray(createObject('name', 'name', 'type', 'string'), createObject('name', 'status', 'type', 'string'), createObject('name', 'queries', 'type', 'long'), createObject('name', 'percentage', 'type', 'real'), createObject('name', 'profileId', 'type', 'string'), createObject('name', 'metric', 'type', 'string'))))]",
+                "destinations": {
+                  "logAnalytics": [
+                    {
+                      "workspaceResourceId": "[variables('workspaceResourceId')]",
+                      "name": "[parameters('workspaceName')]"
+                    }
+                  ]
+                },
+                "dataFlows": [
+                  {
+                    "streams": ["[variables('customTable')]"],
+                    "destinations": ["[parameters('workspaceName')]"],
+                    "outputStream": "[variables('customTable')]",
+                    "transformKql": "source | extend device_obj = todynamic(device) | project TimeGenerated = iff(isempty(timestamp), now(), todatetime(timestamp)), profileId = tostring(profileId), domain = tostring(domain), root = tostring(root), status = tostring(status), queryType = tostring(type), protocol = tostring(protocol), encrypted = tobool(encrypted), clientIp = tostring(clientIp), client = tostring(client), tracker = tostring(tracker), deviceName = iff(isempty(tostring(deviceName)), tostring(device_obj.name), tostring(deviceName)), deviceId = tostring(device_obj.id), deviceModel = tostring(device_obj.model), reasons = tostring(reasons), device = device_obj, RawData = pack_all()"
+                  },
+                  {
+                    "streams": ["[variables('customAnalyticsTable')]"],
+                    "destinations": ["[parameters('workspaceName')]"],
+                    "outputStream": "[variables('customAnalyticsTable')]",
+                    "transformKql": "source | extend TimeGenerated = now(), queryCount = columnifexists('queries', 0) | project TimeGenerated, profileId, metric, name, status, queryCount, percentage"
+                  }
+                ]
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/dataConnectors",
+              "apiVersion": "2022-12-01-preview",
+              "name": "[[concat(parameters('workspaceName'), '/Microsoft.SecurityInsights/', guid(parameters('workspaceName'), 'nextdns-logs', string(parameters('profiles')[copyIndex('nextDnsProfileConnections')])))]",
+              "kind": "RestApiPoller",
+              "copy": {
+                "name": "nextDnsProfileConnections",
+                "count": "[length(parameters('profiles'))]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Insights/dataCollectionRules', variables('dcrName'))]",
+                  "[resourceId('Microsoft.Insights/dataCollectionEndpoints', variables('dceName'))]",
+                "[resourceId('Microsoft.OperationalInsights/workspaces/tables', parameters('workspaceName'), variables('tableName'))]"
+              ],
+              "properties": {
+                "connectorDefinitionName": "[variables('connectorName')]",
+                "dataType": "[variables('tableName')]",
+                "dcrConfig": {
+                  "dataCollectionEndpoint": "[reference(variables('dceResourceId'), '2021-04-01').logsIngestion.endpoint]",
+                  "dataCollectionRuleImmutableId": "[reference(variables('dcrResourceId'), '2022-06-01').immutableId]",
+                  "streamName": "[variables('customTable')]"
+                },
+                "auth": {
+                  "type": "APIKey",
+                  "ApiKeyName": "X-Api-Key",
+                  "ApiKeyIdentifier": "",
+                  "ApiKey": "[parameters('nextDnsApiKeySecretUri')]"
+                },
+                "request": {
+                  "apiEndpoint": "[[concat('https://api.nextdns.io/profiles/', parameters('profiles')[copyIndex('nextDnsProfileConnections')], '/logs')]",
+                  "httpMethod": "GET",
+                  "queryWindowInMin": 5,
+                  "queryTimeFormat": "yyyy-MM-ddTHH:mm:ssZ",
+                  "queryParameters": {
+                    "sort": "asc",
+                    "limit": "1000",
+                    "raw": "1"
+                  },
+                  "startTimeAttributeName": "from",
+                  "endTimeAttributeName": "to",
+                  "headers": {
+                    "Accept": "application/json"
+                  },
+                  "rateLimitQps": 2,
+                  "retryCount": 3,
+                  "retryWaitInSeconds": 10
+                },
+                "paging": {
+                  "pagingType": "NextPageToken",
+                  "nextPageTokenJsonPath": "$.meta.pagination.cursor",
+                  "nextPageParaName": "cursor"
+                },
+                "response": {
+                  "EventsJsonPaths": ["$.data[*]"],
+                  "format": "json",
+                  "additionalFields": {}
+                },
+                "pollingIntervalInSeconds": 300,
+                "addOnAttributes": {
+                  "friendlyName": "[[concat('NextDNS Profile ', parameters('profiles')[copyIndex('nextDnsProfileConnections')])]",
+                  "aliasName": "NextDNS_Parser"
+                }
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/dataConnectors",
+              "apiVersion": "2022-12-01-preview",
+              "name": "[[concat(parameters('workspaceName'), '/Microsoft.SecurityInsights/', guid(parameters('workspaceName'), 'analytics-status', string(parameters('profiles')[copyIndex('nextDnsAnalyticsStatusConnections')])))]",
+              "kind": "RestApiPoller",
+              "copy": {
+                "name": "nextDnsAnalyticsStatusConnections",
+                "count": "[length(parameters('profiles'))]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Insights/dataCollectionRules', variables('dcrName'))]",
+                  "[resourceId('Microsoft.Insights/dataCollectionEndpoints', variables('dceName'))]",
+                "[resourceId('Microsoft.OperationalInsights/workspaces/tables', parameters('workspaceName'), variables('analyticsTableName'))]"
+              ],
+              "properties": {
+                "connectorDefinitionName": "[variables('connectorName')]",
+                "dataType": "[variables('analyticsTableName')]",
+                "dcrConfig": {
+                  "dataCollectionEndpoint": "[reference(variables('dceResourceId'), '2021-04-01').logsIngestion.endpoint]",
+                  "dataCollectionRuleImmutableId": "[reference(variables('dcrResourceId'), '2022-06-01').immutableId]",
+                  "streamName": "[variables('customAnalyticsTable')]"
+                },
+                "auth": {
+                  "type": "APIKey",
+                  "ApiKeyName": "X-Api-Key",
+                  "ApiKeyIdentifier": "",
+                  "ApiKey": "[parameters('nextDnsApiKeySecretUri')]"
+                },
+                "request": {
+                  "apiEndpoint": "[[concat('https://api.nextdns.io/profiles/', parameters('profiles')[copyIndex('nextDnsAnalyticsStatusConnections')], '/analytics/status')]",
+                  "httpMethod": "GET",
+                  "queryWindowInMin": 60,
+                  "queryTimeFormat": "yyyy-MM-ddTHH:mm:ssZ",
+                  "queryParameters": { "limit": "100" },
+                  "startTimeAttributeName": "from",
+                  "endTimeAttributeName": "to",
+                  "headers": { "Accept": "application/json" },
+                  "rateLimitQps": 2,
+                  "retryCount": 3,
+                  "retryWaitInSeconds": 10
+                },
+                "response": {
+                  "EventsJsonPaths": ["$.data[*]"],
+                  "format": "json",
+                  "additionalFields": {
+                    "metric": "status",
+                    "profileId": "[[parameters('profiles')[copyIndex('nextDnsAnalyticsStatusConnections')]]"
+                  }
+                },
+                "pollingIntervalInSeconds": 3600
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/dataConnectors",
+              "apiVersion": "2022-12-01-preview",
+              "name": "[[concat(parameters('workspaceName'), '/Microsoft.SecurityInsights/', guid(parameters('workspaceName'), 'analytics-domains', string(parameters('profiles')[copyIndex('nextDnsAnalyticsDomainsConnections')])))]",
+              "kind": "RestApiPoller",
+              "copy": {
+                "name": "nextDnsAnalyticsDomainsConnections",
+                "count": "[length(parameters('profiles'))]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Insights/dataCollectionRules', variables('dcrName'))]",
+                  "[resourceId('Microsoft.Insights/dataCollectionEndpoints', variables('dceName'))]",
+                "[resourceId('Microsoft.OperationalInsights/workspaces/tables', parameters('workspaceName'), variables('analyticsTableName'))]"
+              ],
+              "properties": {
+                "connectorDefinitionName": "[variables('connectorName')]",
+                "dataType": "[variables('analyticsTableName')]",
+                "dcrConfig": {
+                  "dataCollectionEndpoint": "[reference(variables('dceResourceId'), '2021-04-01').logsIngestion.endpoint]",
+                  "dataCollectionRuleImmutableId": "[reference(variables('dcrResourceId'), '2022-06-01').immutableId]",
+                  "streamName": "[variables('customAnalyticsTable')]"
+                },
+                "auth": {
+                  "type": "APIKey",
+                  "ApiKeyName": "X-Api-Key",
+                  "ApiKeyIdentifier": "",
+                  "ApiKey": "[parameters('nextDnsApiKeySecretUri')]"
+                },
+                "request": {
+                  "apiEndpoint": "[[concat('https://api.nextdns.io/profiles/', parameters('profiles')[copyIndex('nextDnsAnalyticsDomainsConnections')], '/analytics/domains')]",
+                  "httpMethod": "GET",
+                  "queryWindowInMin": 60,
+                  "queryTimeFormat": "yyyy-MM-ddTHH:mm:ssZ",
+                  "queryParameters": { "limit": "100" },
+                  "startTimeAttributeName": "from",
+                  "endTimeAttributeName": "to",
+                  "headers": { "Accept": "application/json" },
+                  "rateLimitQps": 2,
+                  "retryCount": 3,
+                  "retryWaitInSeconds": 10
+                },
+                "response": {
+                  "EventsJsonPaths": ["$.data[*]"],
+                  "format": "json",
+                  "additionalFields": {
+                    "metric": "domains",
+                    "profileId": "[[parameters('profiles')[copyIndex('nextDnsAnalyticsDomainsConnections')]]"
+                  }
+                },
+                "pollingIntervalInSeconds": 3600
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/dataConnectors",
+              "apiVersion": "2022-12-01-preview",
+              "name": "[[concat(parameters('workspaceName'), '/Microsoft.SecurityInsights/', guid(parameters('workspaceName'), 'analytics-reasons', string(parameters('profiles')[copyIndex('nextDnsAnalyticsReasonsConnections')])))]",
+              "kind": "RestApiPoller",
+              "copy": {
+                "name": "nextDnsAnalyticsReasonsConnections",
+                "count": "[length(parameters('profiles'))]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Insights/dataCollectionRules', variables('dcrName'))]",
+                  "[resourceId('Microsoft.Insights/dataCollectionEndpoints', variables('dceName'))]",
+                "[resourceId('Microsoft.OperationalInsights/workspaces/tables', parameters('workspaceName'), variables('analyticsTableName'))]"
+              ],
+              "properties": {
+                "connectorDefinitionName": "[variables('connectorName')]",
+                "dataType": "[variables('analyticsTableName')]",
+                "dcrConfig": {
+                  "dataCollectionEndpoint": "[reference(variables('dceResourceId'), '2021-04-01').logsIngestion.endpoint]",
+                  "dataCollectionRuleImmutableId": "[reference(variables('dcrResourceId'), '2022-06-01').immutableId]",
+                  "streamName": "[variables('customAnalyticsTable')]"
+                },
+                "auth": {
+                  "type": "APIKey",
+                  "ApiKeyName": "X-Api-Key",
+                  "ApiKeyIdentifier": "",
+                  "ApiKey": "[parameters('nextDnsApiKeySecretUri')]"
+                },
+                "request": {
+                  "apiEndpoint": "[[concat('https://api.nextdns.io/profiles/', parameters('profiles')[copyIndex('nextDnsAnalyticsReasonsConnections')], '/analytics/reasons')]",
+                  "httpMethod": "GET",
+                  "queryWindowInMin": 60,
+                  "queryTimeFormat": "yyyy-MM-ddTHH:mm:ssZ",
+                  "queryParameters": { "limit": "100" },
+                  "startTimeAttributeName": "from",
+                  "endTimeAttributeName": "to",
+                  "headers": { "Accept": "application/json" },
+                  "rateLimitQps": 2,
+                  "retryCount": 3,
+                  "retryWaitInSeconds": 10
+                },
+                "response": {
+                  "EventsJsonPaths": ["$.data[*]"],
+                  "format": "json",
+                  "additionalFields": {
+                    "metric": "reasons",
+                    "profileId": "[[parameters('profiles')[copyIndex('nextDnsAnalyticsReasonsConnections')]]"
+                  }
+                },
+                "pollingIntervalInSeconds": 3600
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/dataConnectors",
+              "apiVersion": "2022-12-01-preview",
+              "name": "[[concat(parameters('workspaceName'), '/Microsoft.SecurityInsights/', guid(parameters('workspaceName'), 'analytics-querytypes', string(parameters('profiles')[copyIndex('nextDnsAnalyticsQueryTypesConnections')])))]",
+              "kind": "RestApiPoller",
+              "copy": {
+                "name": "nextDnsAnalyticsQueryTypesConnections",
+                "count": "[length(parameters('profiles'))]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Insights/dataCollectionRules', variables('dcrName'))]",
+                  "[resourceId('Microsoft.Insights/dataCollectionEndpoints', variables('dceName'))]",
+                "[resourceId('Microsoft.OperationalInsights/workspaces/tables', parameters('workspaceName'), variables('analyticsTableName'))]"
+              ],
+              "properties": {
+                "connectorDefinitionName": "[variables('connectorName')]",
+                "dataType": "[variables('analyticsTableName')]",
+                "dcrConfig": {
+                  "dataCollectionEndpoint": "[reference(variables('dceResourceId'), '2021-04-01').logsIngestion.endpoint]",
+                  "dataCollectionRuleImmutableId": "[reference(variables('dcrResourceId'), '2022-06-01').immutableId]",
+                  "streamName": "[variables('customAnalyticsTable')]"
+                },
+                "auth": {
+                  "type": "APIKey",
+                  "ApiKeyName": "X-Api-Key",
+                  "ApiKeyIdentifier": "",
+                  "ApiKey": "[parameters('nextDnsApiKeySecretUri')]"
+                },
+                "request": {
+                  "apiEndpoint": "[[concat('https://api.nextdns.io/profiles/', parameters('profiles')[copyIndex('nextDnsAnalyticsQueryTypesConnections')], '/analytics/queryTypes')]",
+                  "httpMethod": "GET",
+                  "queryWindowInMin": 60,
+                  "queryTimeFormat": "yyyy-MM-ddTHH:mm:ssZ",
+                  "queryParameters": { "limit": "100" },
+                  "startTimeAttributeName": "from",
+                  "endTimeAttributeName": "to",
+                  "headers": { "Accept": "application/json" },
+                  "rateLimitQps": 2,
+                  "retryCount": 3,
+                  "retryWaitInSeconds": 10
+                },
+                "response": {
+                  "EventsJsonPaths": ["$.data[*]"],
+                  "format": "json",
+                  "additionalFields": {
+                    "metric": "queryTypes",
+                    "profileId": "[[parameters('profiles')[copyIndex('nextDnsAnalyticsQueryTypesConnections')]]"
+                  }
+                },
+                "pollingIntervalInSeconds": 3600
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/dataConnectors",
+              "apiVersion": "2022-12-01-preview",
+              "name": "[[concat(parameters('workspaceName'), '/Microsoft.SecurityInsights/', guid(parameters('workspaceName'), 'analytics-devices', string(parameters('profiles')[copyIndex('nextDnsAnalyticsDevicesConnections')])))]",
+              "kind": "RestApiPoller",
+              "copy": {
+                "name": "nextDnsAnalyticsDevicesConnections",
+                "count": "[length(parameters('profiles'))]"
+              },
+              "dependsOn": [
+                "[resourceId('Microsoft.Insights/dataCollectionRules', variables('dcrName'))]",
+                  "[resourceId('Microsoft.Insights/dataCollectionEndpoints', variables('dceName'))]",
+                "[resourceId('Microsoft.OperationalInsights/workspaces/tables', parameters('workspaceName'), variables('analyticsTableName'))]"
+              ],
+              "properties": {
+                "connectorDefinitionName": "[variables('connectorName')]",
+                "dataType": "[variables('analyticsTableName')]",
+                "dcrConfig": {
+                  "dataCollectionEndpoint": "[reference(variables('dceResourceId'), '2021-04-01').logsIngestion.endpoint]",
+                  "dataCollectionRuleImmutableId": "[reference(variables('dcrResourceId'), '2022-06-01').immutableId]",
+                  "streamName": "[variables('customAnalyticsTable')]"
+                },
+                "auth": {
+                  "type": "APIKey",
+                  "ApiKeyName": "X-Api-Key",
+                  "ApiKeyIdentifier": "",
+                  "ApiKey": "[parameters('nextDnsApiKeySecretUri')]"
+                },
+                "request": {
+                  "apiEndpoint": "[[concat('https://api.nextdns.io/profiles/', parameters('profiles')[copyIndex('nextDnsAnalyticsDevicesConnections')], '/analytics/devices')]",
+                  "httpMethod": "GET",
+                  "queryWindowInMin": 60,
+                  "queryTimeFormat": "yyyy-MM-ddTHH:mm:ssZ",
+                  "queryParameters": { "limit": "100" },
+                  "startTimeAttributeName": "from",
+                  "endTimeAttributeName": "to",
+                  "headers": { "Accept": "application/json" },
+                  "rateLimitQps": 2,
+                  "retryCount": 3,
+                  "retryWaitInSeconds": 10
+                },
+                "response": {
+                  "EventsJsonPaths": ["$.data[*]"],
+                  "format": "json",
+                  "additionalFields": {
+                    "metric": "devices",
+                    "profileId": "[[parameters('profiles')[copyIndex('nextDnsAnalyticsDevicesConnections')]]"
+                  }
+                },
+                "pollingIntervalInSeconds": 3600
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+              "apiVersion": "2022-10-01",
+              "name": "[concat(parameters('workspaceName'), '/NextDNS_Parser')]",
+              "dependsOn": [
+                "[resourceId('Microsoft.OperationalInsights/workspaces/tables', parameters('workspaceName'), variables('tableName'))]"
+              ],
+              "properties": {
+                "eTag": "*",
+                "category": "Microsoft Sentinel Parser",
+                "displayName": "NextDNS Parser",
+                "query": "let NextDNS_Parser = () { NextDNS_CL | extend EventVendor='NextDNS', EventProduct='NextDNS', EventSchema='Dns', EventSchemaVersion='0.1.0', EventType='DnsQuery' | extend Dvc=tostring(deviceName), SrcIpAddr=tostring(clientIp), DnsQuery=tostring(domain), DnsQueryDomain=tostring(root), DnsQueryTypeName=tostring(queryType), NetworkProtocol=tostring(protocol), EventResult=iff(tolower(tostring(status)) == 'blocked', 'Failure', 'Success'), EventResultDetails=tostring(status) | extend AdditionalFields=bag_pack('ProfileId', tostring(profileId), 'Reasons', tostring(reasons), 'Encrypted', tobool(encrypted), 'Client', tostring(client), 'Tracker', tostring(tracker), 'Device', device) | project TimeGenerated, EventVendor, EventProduct, EventSchema, EventSchemaVersion, EventType, EventResult, EventResultDetails, Dvc, SrcIpAddr, DnsQuery, DnsQueryDomain, DnsQueryTypeName, NetworkProtocol, AdditionalFields, RawData }; NextDNS_Parser",
+                "functionParameters": "",
+                "version": 2,
+                "functionAlias": "NextDNS_Parser"
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+              "apiVersion": "2022-10-01",
+              "name": "[concat(parameters('workspaceName'), '/NextDNSAnalytics_Parser')]",
+              "dependsOn": [
+                "[resourceId('Microsoft.OperationalInsights/workspaces/tables', parameters('workspaceName'), variables('analyticsTableName'))]"
+              ],
+              "properties": {
+                "eTag": "*",
+                "category": "Microsoft Sentinel Parser",
+                "displayName": "NextDNS Analytics Parser",
+                "query": "let NextDNSAnalytics_Parser = () { NextDNSAnalytics_CL | extend EventVendor='NextDNS', EventProduct='NextDNS' | extend itemName=iff(isnotempty(name), name, status) | project TimeGenerated, EventVendor, EventProduct, profileId, metric, itemName, queryCount, percentage }; NextDNSAnalytics_Parser",
+                "functionParameters": "",
+                "version": 2,
+                "functionAlias": "NextDNSAnalytics_Parser"
+              }
+            }
+          ],
+          "outputs": {}
+        },
+        "packageKind": "Solution",
+        "packageVersion": "[variables('_solutionVersion')]",
+        "packageName": "[variables('_solutionName')]",
+        "contentProductId": "[variables('_dataConnectorcontentProductIdConnections1')]",
+        "packageId": "[variables('_solutionId')]",
+        "contentSchemaVersion": "3.0.0",
+        "version": "[variables('dataConnectorCCPVersion')]"
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/contentPackages",
+      "apiVersion": "2023-04-01-preview",
+      "location": "[parameters('workspace-location')]",
+      "name": "[concat(parameters('workspace'), '/Microsoft.SecurityInsights/', variables('_solutionId'))]",
+      "properties": {
+        "version": "[variables('_solutionVersion')]",
+        "kind": "Solution",
+        "contentSchemaVersion": "3.0.0",
+        "displayName": "NextDNS",
+        "publisherDisplayName": "Rogier Dijkman",
+        "contentKind": "Solution",
+        "contentProductId": "[variables('_solutioncontentProductId')]",
+        "id": "[variables('_solutioncontentProductId')]",
+        "contentId": "[variables('_solutionId')]",
+        "parentId": "[variables('_solutionId')]",
+        "source": {
+          "kind": "Solution",
+          "name": "NextDNS",
+          "sourceId": "[variables('_solutionId')]"
+        },
+        "author": {
+          "name": "Rogier Dijkman",
+          "email": "[variables('_email')]"
+        },
+        "support": {
+          "name": "Rogier Dijkman",
+          "email": "[variables('_email')]",
+          "tier": "Partner",
+          "link": "https://github.com/azurekid/home-assistant"
+        },
+        "dependencies": {
+          "operator": "AND",
+          "criteria": [
+            {
+              "kind": "Parser",
+              "contentId": "[variables('parserObject1').parserContentId1]",
+              "version": "[variables('parserObject1').parserVersion1]"
+            },
+            {
+              "kind": "Parser",
+              "contentId": "[variables('parserObject2').parserContentId2]",
+              "version": "[variables('parserObject2').parserVersion2]"
+            },
+            {
+              "kind": "DataConnector",
+              "contentId": "[variables('_dataConnectorContentIdConnections1')]",
+              "version": "[variables('dataConnectorCCPVersion')]"
+            }
+          ]
+        },
+        "firstPublishDate": "2026-08-04",
+        "providers": [
+          "NextDNS"
+        ],
+        "categories": {
+          "domains": [
+            "Security"
+          ]
+        }
+      }
+    }
+  ],
+  "outputs": {}
+}

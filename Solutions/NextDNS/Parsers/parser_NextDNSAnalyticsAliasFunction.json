@@ -1,0 +1,14 @@
+{
+  "name": "NextDNSAnalyticsAliasFunction",
+  "apiVersion": "2023-09-01",
+  "type": "Microsoft.OperationalInsights/workspaces/savedSearches",
+  "properties": {
+    "eTag": "*",
+    "displayName": "NextDNSAnalytics_Parser",
+    "category": "Microsoft Sentinel Parser",
+    "functionAlias": "NextDNSAnalytics_Parser",
+    "query": "let NextDNSAnalytics_Parser = () {\n    union isfuzzy=true NextDNSAnalytics_CL,\n    datatable(TimeGenerated:datetime, profileId:string, metric:string, name:string, status:string, queryCount:long, percentage:real)[]\n    | extend TimeGenerated = coalesce(todatetime(column_ifexists('TimeGenerated', datetime(null))), now())\n    | extend profileId = tostring(coalesce(column_ifexists('profileId', ''), column_ifexists('profileId_s', '')))\n    | extend metric = tostring(column_ifexists('metric', ''))\n    | extend queryCount = tolong(coalesce(column_ifexists('queryCount', 0), column_ifexists('queries', 0)))\n    | extend percentage = toreal(column_ifexists('percentage', 0.0))\n    | extend _name = tostring(column_ifexists('name', '')), _status = tostring(column_ifexists('status', ''))\n    | extend itemName = iff(isnotempty(_name), _name, _status)\n    | extend EventVendor = 'NextDNS', EventProduct = 'NextDNS'\n    | project TimeGenerated, EventVendor, EventProduct, profileId, metric, itemName, queryCount, percentage\n};\nNextDNSAnalytics_Parser",
+    "functionParameters": "",
+    "version": 2
+  }
+}

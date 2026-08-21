@@ -1,0 +1,18 @@
+{
+  "publisherId": "rogierdijkman",
+  "offerId": "azure-sentinel-solution-nextdns",
+  "firstPublishDate": "2026-08-04",
+  "providers": [
+    "NextDNS"
+  ],
+  "categories": {
+    "domains": [
+      "Security"
+    ]
+  },
+  "support": {
+    "name": "Rogier Dijkman",
+    "tier": "Partner",
+    "link": "https://github.com/azurekid/home-assistant"
+  }
+}

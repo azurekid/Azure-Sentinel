@@ -1,0 +1,37 @@
+{
+  "name": "NextDNS_CL",
+  "type": "Microsoft.OperationalInsights/workspaces/tables",
+  "apiVersion": "2022-10-01",
+  "tags": {
+    "StreamName": "Custom-NextDNS_CL",
+    "DataSource": "NextDNSConnector",
+    "Category": "Security"
+  },
+  "properties": {
+    "retentionInDays": 30,
+    "totalRetentionInDays": 30,
+    "schema": {
+      "name": "NextDNS_CL",
+      "description": "NextDNS DNS query events",
+      "columns": [
+        { "name": "TimeGenerated", "type": "datetime" },
+        { "name": "profileId", "type": "string" },
+        { "name": "domain", "type": "string" },
+        { "name": "root", "type": "string" },
+        { "name": "status", "type": "string" },
+        { "name": "queryType", "type": "string" },
+        { "name": "protocol", "type": "string" },
+        { "name": "encrypted", "type": "boolean" },
+        { "name": "clientIp", "type": "string" },
+        { "name": "deviceName", "type": "string" },
+        { "name": "deviceId", "type": "string" },
+        { "name": "deviceModel", "type": "string" },
+        { "name": "client", "type": "string" },
+        { "name": "tracker", "type": "string" },
+        { "name": "reasons", "type": "string" },
+        { "name": "device", "type": "dynamic" },
+        { "name": "RawData", "type": "dynamic" }
+      ]
+    }
+  }
+}

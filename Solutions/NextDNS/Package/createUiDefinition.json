@@ -1,0 +1,50 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/0.1.2-preview/CreateUIDefinition.MultiVm.json#",
+  "handler": "Microsoft.Azure.CreateUIDef",
+  "version": "0.1.2-preview",
+  "parameters": {
+    "config": {
+      "isWizard": false
+    },
+    "basics": [
+      {
+        "name": "workspace",
+        "type": "Microsoft.Common.TextBox",
+        "label": "Workspace Name",
+        "defaultValue": "",
+        "toolTip": "Log Analytics workspace name where Microsoft Sentinel is enabled.",
+        "constraints": {
+          "required": true
+        }
+      },
+      {
+        "name": "profiles",
+        "type": "Microsoft.Common.TextBox",
+        "label": "Profile IDs",
+        "defaultValue": "1d96ff,9387a4",
+        "toolTip": "Comma-separated NextDNS profile IDs to ingest.",
+        "constraints": {
+          "required": true
+        }
+      },
+      {
+        "name": "nextDnsApiKeySecretUri",
+        "type": "Microsoft.Common.PasswordBox",
+        "label": "NextDNS API Key",
+        "toolTip": "NextDNS API key used by REST API pollers.",
+        "constraints": {
+          "required": true
+        }
+      }
+    ],
+    "outputs": {
+      "workspace": "[basics('workspace')]",
+      "workspace-location": "[location()]",
+      "location": "[location()]",
+      "profiles": "[split(replace(basics('profiles'),' ',''), ',')]",
+      "nextDnsApiKeySecretUri": "[basics('nextDnsApiKeySecretUri')]",
+      "resourceGroupName": "[resourceGroup().name]",
+      "subscription": "[last(split(subscription().id, '/'))]"
+    }
+  }
+}
