@@ -148,6 +148,48 @@
     "dataCollectionEndpointId1": "[concat('/subscriptions/', parameters('subscription'), '/resourceGroups/', parameters('resourceGroupName'), '/providers/Microsoft.Insights/dataCollectionEndpoints/', variables('dceName'))]",
     "dceResourceId": "[variables('dataCollectionEndpointId1')]",
     "dcrResourceId": "[concat('/subscriptions/', parameters('subscription'), '/resourceGroups/', parameters('resourceGroupName'), '/providers/Microsoft.Insights/dataCollectionRules/', variables('dcrName'))]",
+    "analyticRuleObject1": {
+      "analyticRuleVersion1": "1.0.0",
+      "_analyticRulecontentId1": "9b8d90c2-0f6a-4c2f-8d1f-6e7162e82d11",
+      "analyticRuleId1": "[resourceId('Microsoft.SecurityInsights/AlertRuleTemplates', '9b8d90c2-0f6a-4c2f-8d1f-6e7162e82d11')]",
+      "analyticRuleTemplateSpecName1": "[concat(parameters('workspace'), '/Microsoft.SecurityInsights/', concat(parameters('workspace'), '-ar-', uniqueString('9b8d90c2-0f6a-4c2f-8d1f-6e7162e82d11')))]",
+      "_analyticRulecontentProductId1": "[concat(take(variables('_solutionId'), 50), '-ar-', uniqueString(concat(variables('_solutionId'), '-AnalyticsRule-', '9b8d90c2-0f6a-4c2f-8d1f-6e7162e82d11', '-', '1.0.0')))]"
+    },
+    "analyticRuleObject2": {
+      "analyticRuleVersion2": "1.0.0",
+      "_analyticRulecontentId2": "f5e6bcbc-4cca-4d97-8b95-a7bb7ac9c2a2",
+      "analyticRuleId2": "[resourceId('Microsoft.SecurityInsights/AlertRuleTemplates', 'f5e6bcbc-4cca-4d97-8b95-a7bb7ac9c2a2')]",
+      "analyticRuleTemplateSpecName2": "[concat(parameters('workspace'), '/Microsoft.SecurityInsights/', concat(parameters('workspace'), '-ar-', uniqueString('f5e6bcbc-4cca-4d97-8b95-a7bb7ac9c2a2')))]",
+      "_analyticRulecontentProductId2": "[concat(take(variables('_solutionId'), 50), '-ar-', uniqueString(concat(variables('_solutionId'), '-AnalyticsRule-', 'f5e6bcbc-4cca-4d97-8b95-a7bb7ac9c2a2', '-', '1.0.0')))]"
+    },
+    "analyticRuleObject3": {
+      "analyticRuleVersion3": "1.0.0",
+      "_analyticRulecontentId3": "5c4f8ef9-9bb6-4b88-a2c7-4e9ca508ec7a",
+      "analyticRuleId3": "[resourceId('Microsoft.SecurityInsights/AlertRuleTemplates', '5c4f8ef9-9bb6-4b88-a2c7-4e9ca508ec7a')]",
+      "analyticRuleTemplateSpecName3": "[concat(parameters('workspace'), '/Microsoft.SecurityInsights/', concat(parameters('workspace'), '-ar-', uniqueString('5c4f8ef9-9bb6-4b88-a2c7-4e9ca508ec7a')))]",
+      "_analyticRulecontentProductId3": "[concat(take(variables('_solutionId'), 50), '-ar-', uniqueString(concat(variables('_solutionId'), '-AnalyticsRule-', '5c4f8ef9-9bb6-4b88-a2c7-4e9ca508ec7a', '-', '1.0.0')))]"
+    },
+    "analyticRuleObject4": {
+      "analyticRuleVersion4": "1.0.0",
+      "_analyticRulecontentId4": "f88d1973-9d57-4868-8bcc-fb1dc4c6ac25",
+      "analyticRuleId4": "[resourceId('Microsoft.SecurityInsights/AlertRuleTemplates', 'f88d1973-9d57-4868-8bcc-fb1dc4c6ac25')]",
+      "analyticRuleTemplateSpecName4": "[concat(parameters('workspace'), '/Microsoft.SecurityInsights/', concat(parameters('workspace'), '-ar-', uniqueString('f88d1973-9d57-4868-8bcc-fb1dc4c6ac25')))]",
+      "_analyticRulecontentProductId4": "[concat(take(variables('_solutionId'), 50), '-ar-', uniqueString(concat(variables('_solutionId'), '-AnalyticsRule-', 'f88d1973-9d57-4868-8bcc-fb1dc4c6ac25', '-', '1.0.0')))]"
+    },
+    "analyticRuleObject5": {
+      "analyticRuleVersion5": "1.0.0",
+      "_analyticRulecontentId5": "2ef5ea4c-0c59-4d0e-9838-cfb0ab1b2f26",
+      "analyticRuleId5": "[resourceId('Microsoft.SecurityInsights/AlertRuleTemplates', '2ef5ea4c-0c59-4d0e-9838-cfb0ab1b2f26')]",
+      "analyticRuleTemplateSpecName5": "[concat(parameters('workspace'), '/Microsoft.SecurityInsights/', concat(parameters('workspace'), '-ar-', uniqueString('2ef5ea4c-0c59-4d0e-9838-cfb0ab1b2f26')))]",
+      "_analyticRulecontentProductId5": "[concat(take(variables('_solutionId'), 50), '-ar-', uniqueString(concat(variables('_solutionId'), '-AnalyticsRule-', '2ef5ea4c-0c59-4d0e-9838-cfb0ab1b2f26', '-', '1.0.0')))]"
+    },
+    "analyticRuleObject6": {
+      "analyticRuleVersion6": "1.0.0",
+      "_analyticRulecontentId6": "d92426f6-7f77-4e66-8adc-4e6cfb8e8f70",
+      "analyticRuleId6": "[resourceId('Microsoft.SecurityInsights/AlertRuleTemplates', 'd92426f6-7f77-4e66-8adc-4e6cfb8e8f70')]",
+      "analyticRuleTemplateSpecName6": "[concat(parameters('workspace'), '/Microsoft.SecurityInsights/', concat(parameters('workspace'), '-ar-', uniqueString('d92426f6-7f77-4e66-8adc-4e6cfb8e8f70')))]",
+      "_analyticRulecontentProductId6": "[concat(take(variables('_solutionId'), 50), '-ar-', uniqueString(concat(variables('_solutionId'), '-AnalyticsRule-', 'd92426f6-7f77-4e66-8adc-4e6cfb8e8f70', '-', '1.0.0')))]"
+    },
     "_solutioncontentProductId": "[concat(take(variables('_solutionId'), 50), '-sl-', uniqueString(concat(variables('_solutionId'), '-Solution-', variables('_solutionVersion'))))]"
   },
   "resources": [
@@ -845,6 +887,414 @@
       }
     },
     {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/contentTemplates",
+      "apiVersion": "2023-04-01-preview",
+      "name": "[variables('analyticRuleObject1').analyticRuleTemplateSpecName1]",
+      "location": "[parameters('workspace-location')]",
+      "properties": {
+        "description": "NextDNS blocked domain spike analytics rule",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "[variables('analyticRuleObject1').analyticRuleVersion1]",
+          "parameters": {},
+          "variables": {},
+          "resources": [
+            {
+              "type": "Microsoft.SecurityInsights/AlertRuleTemplates",
+              "name": "[variables('analyticRuleObject1')._analyticRulecontentId1]",
+              "apiVersion": "2023-02-01-preview",
+              "kind": "Scheduled",
+              "location": "[parameters('workspace-location')]",
+              "properties": {
+                "description": "Detect unusual spikes in blocked DNS events from NextDNS.",
+                "displayName": "NextDNS blocked domain spike",
+                "enabled": true,
+                "query": "let baselineWindow = 1d;\nlet recentWindow = 15m;\nlet parser = NextDNS_Parser()\n| where EventSchema =~ 'Dns'\n| where EventResult =~ 'Failure'\n| extend ProfileId = tostring(AdditionalFields.ProfileId), Reasons = tostring(AdditionalFields.Reasons);\nlet baseline = parser\n| where TimeGenerated between (ago(baselineWindow) .. ago(recentWindow))\n| summarize baselineBlocked = count() by ProfileId, SrcIpAddr;\nlet recent = parser\n| where TimeGenerated >= ago(recentWindow)\n| summarize recentBlocked = count(), SampleDomains = make_set(DnsQuery, 5), SampleReasons = make_set(Reasons, 3) by ProfileId, SrcIpAddr, Dvc;\nrecent\n| join kind=leftouter baseline on ProfileId, SrcIpAddr\n| extend baselineBlocked = coalesce(baselineBlocked, 0)\n| where recentBlocked >= 100 and recentBlocked > baselineBlocked * 3\n| project TimeGenerated = now(), ProfileId, SrcIpAddr, Dvc, recentBlocked, baselineBlocked, SampleDomains, SampleReasons",
+                "queryFrequency": "PT5M",
+                "queryPeriod": "PT15M",
+                "severity": "Medium",
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "status": "Available",
+                "requiredDataConnectors": [{ "connectorId": "NextDNSConnector", "dataTypes": ["NextDNS_CL"] }],
+                "tactics": ["CommandAndControl", "Exfiltration"],
+                "eventGroupingSettings": { "aggregationKind": "SingleAlert" },
+                "incidentConfiguration": { "createIncident": true, "groupingConfiguration": { "lookbackDuration": "PT1H", "matchingMethod": "AllEntities", "enabled": true, "reopenClosedIncident": false } }
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "[concat(parameters('workspace'), '/Microsoft.SecurityInsights/', concat('AnalyticsRule-', last(split(variables('analyticRuleObject1').analyticRuleId1, '/'))))]",
+              "properties": {
+                "description": "NextDNS blocked domain spike",
+                "parentId": "[variables('analyticRuleObject1').analyticRuleId1]",
+                "contentId": "[variables('analyticRuleObject1')._analyticRulecontentId1]",
+                "kind": "AnalyticsRule",
+                "version": "[variables('analyticRuleObject1').analyticRuleVersion1]",
+                "source": { "kind": "Solution", "name": "NextDNS", "sourceId": "[variables('_solutionId')]" },
+                "author": { "name": "Rogier Dijkman" },
+                "support": { "name": "Rogier Dijkman", "tier": "Partner", "link": "https://github.com/azurekid/home-assistant" }
+              }
+            }
+          ]
+        },
+        "packageKind": "Solution",
+        "packageVersion": "[variables('_solutionVersion')]",
+        "packageName": "[variables('_solutionName')]",
+        "packageId": "[variables('_solutionId')]",
+        "contentSchemaVersion": "3.0.0",
+        "contentId": "[variables('analyticRuleObject1')._analyticRulecontentId1]",
+        "contentKind": "AnalyticsRule",
+        "displayName": "NextDNS blocked domain spike",
+        "contentProductId": "[variables('analyticRuleObject1')._analyticRulecontentProductId1]",
+        "id": "[variables('analyticRuleObject1')._analyticRulecontentProductId1]",
+        "version": "[variables('analyticRuleObject1').analyticRuleVersion1]"
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/contentTemplates",
+      "apiVersion": "2023-04-01-preview",
+      "name": "[variables('analyticRuleObject2').analyticRuleTemplateSpecName2]",
+      "location": "[parameters('workspace-location')]",
+      "properties": {
+        "description": "NextDNS potential DNS tunneling analytics rule",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "[variables('analyticRuleObject2').analyticRuleVersion2]",
+          "parameters": {},
+          "variables": {},
+          "resources": [
+            {
+              "type": "Microsoft.SecurityInsights/AlertRuleTemplates",
+              "name": "[variables('analyticRuleObject2')._analyticRulecontentId2]",
+              "apiVersion": "2023-02-01-preview",
+              "kind": "Scheduled",
+              "location": "[parameters('workspace-location')]",
+              "properties": {
+                "description": "Detect high unique-query volume to the same root domain from a single source over a short period.",
+                "displayName": "NextDNS potential DNS tunneling",
+                "enabled": true,
+                "query": "let recentWindow = 15m;\nNextDNS_Parser()\n| where TimeGenerated >= ago(recentWindow)\n| where EventSchema =~ 'Dns'\n| summarize TotalQueries = count(), UniqueQueries = dcount(DnsQuery), SampleQueries = make_set(DnsQuery, 10) by ProfileId = tostring(AdditionalFields.ProfileId), SrcIpAddr, DnsQueryDomain, Dvc\n| where UniqueQueries >= 50 and TotalQueries >= 200\n| project TimeGenerated = now(), ProfileId, SrcIpAddr, Dvc, DnsQueryDomain, TotalQueries, UniqueQueries, SampleQueries",
+                "queryFrequency": "PT5M",
+                "queryPeriod": "PT15M",
+                "severity": "High",
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "status": "Available",
+                "requiredDataConnectors": [{ "connectorId": "NextDNSConnector", "dataTypes": ["NextDNS_CL"] }],
+                "tactics": ["Exfiltration", "CommandAndControl"],
+                "eventGroupingSettings": { "aggregationKind": "SingleAlert" },
+                "incidentConfiguration": { "createIncident": true, "groupingConfiguration": { "lookbackDuration": "PT1H", "matchingMethod": "AllEntities", "enabled": true, "reopenClosedIncident": false } }
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "[concat(parameters('workspace'), '/Microsoft.SecurityInsights/', concat('AnalyticsRule-', last(split(variables('analyticRuleObject2').analyticRuleId2, '/'))))]",
+              "properties": {
+                "description": "NextDNS potential DNS tunneling",
+                "parentId": "[variables('analyticRuleObject2').analyticRuleId2]",
+                "contentId": "[variables('analyticRuleObject2')._analyticRulecontentId2]",
+                "kind": "AnalyticsRule",
+                "version": "[variables('analyticRuleObject2').analyticRuleVersion2]",
+                "source": { "kind": "Solution", "name": "NextDNS", "sourceId": "[variables('_solutionId')]" },
+                "author": { "name": "Rogier Dijkman" },
+                "support": { "name": "Rogier Dijkman", "tier": "Partner", "link": "https://github.com/azurekid/home-assistant" }
+              }
+            }
+          ]
+        },
+        "packageKind": "Solution",
+        "packageVersion": "[variables('_solutionVersion')]",
+        "packageName": "[variables('_solutionName')]",
+        "packageId": "[variables('_solutionId')]",
+        "contentSchemaVersion": "3.0.0",
+        "contentId": "[variables('analyticRuleObject2')._analyticRulecontentId2]",
+        "contentKind": "AnalyticsRule",
+        "displayName": "NextDNS potential DNS tunneling",
+        "contentProductId": "[variables('analyticRuleObject2')._analyticRulecontentProductId2]",
+        "id": "[variables('analyticRuleObject2')._analyticRulecontentProductId2]",
+        "version": "[variables('analyticRuleObject2').analyticRuleVersion2]"
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/contentTemplates",
+      "apiVersion": "2023-04-01-preview",
+      "name": "[variables('analyticRuleObject3').analyticRuleTemplateSpecName3]",
+      "location": "[parameters('workspace-location')]",
+      "properties": {
+        "description": "NextDNS newly observed domain burst analytics rule",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "[variables('analyticRuleObject3').analyticRuleVersion3]",
+          "parameters": {},
+          "variables": {},
+          "resources": [
+            {
+              "type": "Microsoft.SecurityInsights/AlertRuleTemplates",
+              "name": "[variables('analyticRuleObject3')._analyticRulecontentId3]",
+              "apiVersion": "2023-02-01-preview",
+              "kind": "Scheduled",
+              "location": "[parameters('workspace-location')]",
+              "properties": {
+                "description": "Detect spikes in domains not seen in the prior baseline window, potentially indicating phishing or malware infrastructure churn.",
+                "displayName": "NextDNS newly observed domain burst",
+                "enabled": true,
+                "query": "let baseline = NextDNS_Parser()\n| where TimeGenerated between (ago(14d) .. ago(1h))\n| where EventSchema =~ 'Dns'\n| summarize by DnsQueryDomain;\nlet recent = NextDNS_Parser()\n| where TimeGenerated >= ago(1h)\n| where EventSchema =~ 'Dns'\n| summarize QueryCount = count(), SrcIps = dcount(SrcIpAddr), Devices = dcount(Dvc), SampleQueries = make_set(DnsQuery, 10) by DnsQueryDomain, ProfileId = tostring(AdditionalFields.ProfileId);\nrecent\n| join kind=leftanti baseline on DnsQueryDomain\n| where QueryCount >= 25 and SrcIps >= 3\n| project TimeGenerated = now(), ProfileId, DnsQueryDomain, QueryCount, SrcIps, Devices, SampleQueries",
+                "queryFrequency": "PT15M",
+                "queryPeriod": "PT1H",
+                "severity": "Medium",
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "status": "Available",
+                "requiredDataConnectors": [{ "connectorId": "NextDNSConnector", "dataTypes": ["NextDNS_CL"] }],
+                "tactics": ["CommandAndControl", "InitialAccess"],
+                "eventGroupingSettings": { "aggregationKind": "SingleAlert" },
+                "incidentConfiguration": { "createIncident": true, "groupingConfiguration": { "lookbackDuration": "PT2H", "matchingMethod": "AllEntities", "enabled": true, "reopenClosedIncident": false } }
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "[concat(parameters('workspace'), '/Microsoft.SecurityInsights/', concat('AnalyticsRule-', last(split(variables('analyticRuleObject3').analyticRuleId3, '/'))))]",
+              "properties": {
+                "description": "NextDNS newly observed domain burst",
+                "parentId": "[variables('analyticRuleObject3').analyticRuleId3]",
+                "contentId": "[variables('analyticRuleObject3')._analyticRulecontentId3]",
+                "kind": "AnalyticsRule",
+                "version": "[variables('analyticRuleObject3').analyticRuleVersion3]",
+                "source": { "kind": "Solution", "name": "NextDNS", "sourceId": "[variables('_solutionId')]" },
+                "author": { "name": "Rogier Dijkman" },
+                "support": { "name": "Rogier Dijkman", "tier": "Partner", "link": "https://github.com/azurekid/home-assistant" }
+              }
+            }
+          ]
+        },
+        "packageKind": "Solution",
+        "packageVersion": "[variables('_solutionVersion')]",
+        "packageName": "[variables('_solutionName')]",
+        "packageId": "[variables('_solutionId')]",
+        "contentSchemaVersion": "3.0.0",
+        "contentId": "[variables('analyticRuleObject3')._analyticRulecontentId3]",
+        "contentKind": "AnalyticsRule",
+        "displayName": "NextDNS newly observed domain burst",
+        "contentProductId": "[variables('analyticRuleObject3')._analyticRulecontentProductId3]",
+        "id": "[variables('analyticRuleObject3')._analyticRulecontentProductId3]",
+        "version": "[variables('analyticRuleObject3').analyticRuleVersion3]"
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/contentTemplates",
+      "apiVersion": "2023-04-01-preview",
+      "name": "[variables('analyticRuleObject4').analyticRuleTemplateSpecName4]",
+      "location": "[parameters('workspace-location')]",
+      "properties": {
+        "description": "NextDNS malicious category blocked surge analytics rule",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "[variables('analyticRuleObject4').analyticRuleVersion4]",
+          "parameters": {},
+          "variables": {},
+          "resources": [
+            {
+              "type": "Microsoft.SecurityInsights/AlertRuleTemplates",
+              "name": "[variables('analyticRuleObject4')._analyticRulecontentId4]",
+              "apiVersion": "2023-02-01-preview",
+              "kind": "Scheduled",
+              "location": "[parameters('workspace-location')]",
+              "properties": {
+                "description": "Detect repeated blocked DNS queries tied to high-risk categories such as malware, phishing, botnet, cryptomining, and C2-like indicators.",
+                "displayName": "NextDNS malicious category blocked surge",
+                "enabled": true,
+                "query": "NextDNS_Parser()\n| where TimeGenerated >= ago(15m)\n| where EventSchema =~ 'Dns' and EventResult =~ 'Failure'\n| extend ProfileId = tostring(AdditionalFields.ProfileId), Reasons = tolower(tostring(AdditionalFields.Reasons))\n| where Reasons has 'malware' or Reasons has 'phishing' or Reasons has 'botnet' or Reasons has 'cryptomining' or Reasons has 'rebind' or Reasons has 'newly registered' or Reasons has 'c2'\n| summarize BlockedCount = count(), SampleDomains = make_set(DnsQuery, 10), SampleReasons = make_set(Reasons, 5) by ProfileId, SrcIpAddr, Dvc\n| where BlockedCount >= 10\n| project TimeGenerated = now(), ProfileId, SrcIpAddr, Dvc, BlockedCount, SampleDomains, SampleReasons",
+                "queryFrequency": "PT5M",
+                "queryPeriod": "PT15M",
+                "severity": "Medium",
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "status": "Available",
+                "requiredDataConnectors": [{ "connectorId": "NextDNSConnector", "dataTypes": ["NextDNS_CL"] }],
+                "tactics": ["CommandAndControl", "Execution"],
+                "eventGroupingSettings": { "aggregationKind": "SingleAlert" },
+                "incidentConfiguration": { "createIncident": true, "groupingConfiguration": { "lookbackDuration": "PT1H", "matchingMethod": "AllEntities", "enabled": true, "reopenClosedIncident": false } }
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "[concat(parameters('workspace'), '/Microsoft.SecurityInsights/', concat('AnalyticsRule-', last(split(variables('analyticRuleObject4').analyticRuleId4, '/'))))]",
+              "properties": {
+                "description": "NextDNS malicious category blocked surge",
+                "parentId": "[variables('analyticRuleObject4').analyticRuleId4]",
+                "contentId": "[variables('analyticRuleObject4')._analyticRulecontentId4]",
+                "kind": "AnalyticsRule",
+                "version": "[variables('analyticRuleObject4').analyticRuleVersion4]",
+                "source": { "kind": "Solution", "name": "NextDNS", "sourceId": "[variables('_solutionId')]" },
+                "author": { "name": "Rogier Dijkman" },
+                "support": { "name": "Rogier Dijkman", "tier": "Partner", "link": "https://github.com/azurekid/home-assistant" }
+              }
+            }
+          ]
+        },
+        "packageKind": "Solution",
+        "packageVersion": "[variables('_solutionVersion')]",
+        "packageName": "[variables('_solutionName')]",
+        "packageId": "[variables('_solutionId')]",
+        "contentSchemaVersion": "3.0.0",
+        "contentId": "[variables('analyticRuleObject4')._analyticRulecontentId4]",
+        "contentKind": "AnalyticsRule",
+        "displayName": "NextDNS malicious category blocked surge",
+        "contentProductId": "[variables('analyticRuleObject4')._analyticRulecontentProductId4]",
+        "id": "[variables('analyticRuleObject4')._analyticRulecontentProductId4]",
+        "version": "[variables('analyticRuleObject4').analyticRuleVersion4]"
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/contentTemplates",
+      "apiVersion": "2023-04-01-preview",
+      "name": "[variables('analyticRuleObject5').analyticRuleTemplateSpecName5]",
+      "location": "[parameters('workspace-location')]",
+      "properties": {
+        "description": "NextDNS analytics blocked ratio spike by profile analytics rule",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "[variables('analyticRuleObject5').analyticRuleVersion5]",
+          "parameters": {},
+          "variables": {},
+          "resources": [
+            {
+              "type": "Microsoft.SecurityInsights/AlertRuleTemplates",
+              "name": "[variables('analyticRuleObject5')._analyticRulecontentId5]",
+              "apiVersion": "2023-02-01-preview",
+              "kind": "Scheduled",
+              "location": "[parameters('workspace-location')]",
+              "properties": {
+                "description": "Detect profiles with unusually high blocked share in analytics status snapshots.",
+                "displayName": "NextDNS analytics blocked ratio spike by profile",
+                "enabled": true,
+                "query": "let recentWindow = 2h;\nlet statusData = NextDNSAnalytics_Parser()\n| where TimeGenerated >= ago(recentWindow)\n| where metric == 'status'\n| project TimeGenerated, profileId, itemName = tolower(itemName), queryCount;\nlet blocked = statusData\n| where itemName == 'blocked'\n| summarize blockedQueries = sum(queryCount) by profileId;\nlet total = statusData\n| summarize totalQueries = sum(queryCount) by profileId;\nblocked\n| join kind=inner total on profileId\n| extend blockedRatio = iff(totalQueries == 0, 0.0, todouble(blockedQueries) / todouble(totalQueries))\n| where blockedQueries >= 500 and blockedRatio >= 0.4\n| project TimeGenerated = now(), profileId, blockedQueries, totalQueries, blockedRatio",
+                "queryFrequency": "PT15M",
+                "queryPeriod": "PT2H",
+                "severity": "Medium",
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "status": "Available",
+                "requiredDataConnectors": [{ "connectorId": "NextDNSConnector", "dataTypes": ["NextDNSAnalytics_CL"] }],
+                "tactics": ["CommandAndControl", "Exfiltration"],
+                "eventGroupingSettings": { "aggregationKind": "SingleAlert" },
+                "incidentConfiguration": { "createIncident": true, "groupingConfiguration": { "lookbackDuration": "PT2H", "matchingMethod": "AllEntities", "enabled": true, "reopenClosedIncident": false } }
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "[concat(parameters('workspace'), '/Microsoft.SecurityInsights/', concat('AnalyticsRule-', last(split(variables('analyticRuleObject5').analyticRuleId5, '/'))))]",
+              "properties": {
+                "description": "NextDNS analytics blocked ratio spike by profile",
+                "parentId": "[variables('analyticRuleObject5').analyticRuleId5]",
+                "contentId": "[variables('analyticRuleObject5')._analyticRulecontentId5]",
+                "kind": "AnalyticsRule",
+                "version": "[variables('analyticRuleObject5').analyticRuleVersion5]",
+                "source": { "kind": "Solution", "name": "NextDNS", "sourceId": "[variables('_solutionId')]" },
+                "author": { "name": "Rogier Dijkman" },
+                "support": { "name": "Rogier Dijkman", "tier": "Partner", "link": "https://github.com/azurekid/home-assistant" }
+              }
+            }
+          ]
+        },
+        "packageKind": "Solution",
+        "packageVersion": "[variables('_solutionVersion')]",
+        "packageName": "[variables('_solutionName')]",
+        "packageId": "[variables('_solutionId')]",
+        "contentSchemaVersion": "3.0.0",
+        "contentId": "[variables('analyticRuleObject5')._analyticRulecontentId5]",
+        "contentKind": "AnalyticsRule",
+        "displayName": "NextDNS analytics blocked ratio spike by profile",
+        "contentProductId": "[variables('analyticRuleObject5')._analyticRulecontentProductId5]",
+        "id": "[variables('analyticRuleObject5')._analyticRulecontentProductId5]",
+        "version": "[variables('analyticRuleObject5').analyticRuleVersion5]"
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces/providers/contentTemplates",
+      "apiVersion": "2023-04-01-preview",
+      "name": "[variables('analyticRuleObject6').analyticRuleTemplateSpecName6]",
+      "location": "[parameters('workspace-location')]",
+      "properties": {
+        "description": "NextDNS analytics malicious reason concentration analytics rule",
+        "mainTemplate": {
+          "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+          "contentVersion": "[variables('analyticRuleObject6').analyticRuleVersion6]",
+          "parameters": {},
+          "variables": {},
+          "resources": [
+            {
+              "type": "Microsoft.SecurityInsights/AlertRuleTemplates",
+              "name": "[variables('analyticRuleObject6')._analyticRulecontentId6]",
+              "apiVersion": "2023-02-01-preview",
+              "kind": "Scheduled",
+              "location": "[parameters('workspace-location')]",
+              "properties": {
+                "description": "Detect high-volume blocked reason categories from analytics aggregates to quickly identify broad threat campaigns.",
+                "displayName": "NextDNS analytics malicious reason concentration",
+                "enabled": true,
+                "query": "NextDNSAnalytics_Parser()\n| where TimeGenerated >= ago(2h)\n| where metric == 'reasons'\n| extend reason = tolower(itemName)\n| where reason has 'malware' or reason has 'phishing' or reason has 'botnet' or reason has 'cryptomining' or reason has 'c2'\n| summarize blockedQueries = sum(queryCount), maxPct = max(percentage) by profileId, reason\n| where blockedQueries >= 200\n| project TimeGenerated = now(), profileId, reason, blockedQueries, maxPct",
+                "queryFrequency": "PT15M",
+                "queryPeriod": "PT2H",
+                "severity": "Medium",
+                "suppressionDuration": "PT5H",
+                "suppressionEnabled": false,
+                "triggerOperator": "GreaterThan",
+                "triggerThreshold": 0,
+                "status": "Available",
+                "requiredDataConnectors": [{ "connectorId": "NextDNSConnector", "dataTypes": ["NextDNSAnalytics_CL"] }],
+                "tactics": ["CommandAndControl", "Execution"],
+                "eventGroupingSettings": { "aggregationKind": "SingleAlert" },
+                "incidentConfiguration": { "createIncident": true, "groupingConfiguration": { "lookbackDuration": "PT2H", "matchingMethod": "AllEntities", "enabled": true, "reopenClosedIncident": false } }
+              }
+            },
+            {
+              "type": "Microsoft.OperationalInsights/workspaces/providers/metadata",
+              "apiVersion": "2022-01-01-preview",
+              "name": "[concat(parameters('workspace'), '/Microsoft.SecurityInsights/', concat('AnalyticsRule-', last(split(variables('analyticRuleObject6').analyticRuleId6, '/'))))]",
+              "properties": {
+                "description": "NextDNS analytics malicious reason concentration",
+                "parentId": "[variables('analyticRuleObject6').analyticRuleId6]",
+                "contentId": "[variables('analyticRuleObject6')._analyticRulecontentId6]",
+                "kind": "AnalyticsRule",
+                "version": "[variables('analyticRuleObject6').analyticRuleVersion6]",
+                "source": { "kind": "Solution", "name": "NextDNS", "sourceId": "[variables('_solutionId')]" },
+                "author": { "name": "Rogier Dijkman" },
+                "support": { "name": "Rogier Dijkman", "tier": "Partner", "link": "https://github.com/azurekid/home-assistant" }
+              }
+            }
+          ]
+        },
+        "packageKind": "Solution",
+        "packageVersion": "[variables('_solutionVersion')]",
+        "packageName": "[variables('_solutionName')]",
+        "packageId": "[variables('_solutionId')]",
+        "contentSchemaVersion": "3.0.0",
+        "contentId": "[variables('analyticRuleObject6')._analyticRulecontentId6]",
+        "contentKind": "AnalyticsRule",
+        "displayName": "NextDNS analytics malicious reason concentration",
+        "contentProductId": "[variables('analyticRuleObject6')._analyticRulecontentProductId6]",
+        "id": "[variables('analyticRuleObject6')._analyticRulecontentProductId6]",
+        "version": "[variables('analyticRuleObject6').analyticRuleVersion6]"
+      }
+    },
+    {
       "type": "Microsoft.OperationalInsights/workspaces/providers/contentPackages",
       "apiVersion": "2023-04-01-preview",
       "location": "[parameters('workspace-location')]",
@@ -892,6 +1342,36 @@
               "kind": "DataConnector",
               "contentId": "[variables('_dataConnectorContentIdConnections1')]",
               "version": "[variables('dataConnectorCCPVersion')]"
+            },
+            {
+              "kind": "AnalyticsRule",
+              "contentId": "[variables('analyticRuleObject1')._analyticRulecontentId1]",
+              "version": "[variables('analyticRuleObject1').analyticRuleVersion1]"
+            },
+            {
+              "kind": "AnalyticsRule",
+              "contentId": "[variables('analyticRuleObject2')._analyticRulecontentId2]",
+              "version": "[variables('analyticRuleObject2').analyticRuleVersion2]"
+            },
+            {
+              "kind": "AnalyticsRule",
+              "contentId": "[variables('analyticRuleObject3')._analyticRulecontentId3]",
+              "version": "[variables('analyticRuleObject3').analyticRuleVersion3]"
+            },
+            {
+              "kind": "AnalyticsRule",
+              "contentId": "[variables('analyticRuleObject4')._analyticRulecontentId4]",
+              "version": "[variables('analyticRuleObject4').analyticRuleVersion4]"
+            },
+            {
+              "kind": "AnalyticsRule",
+              "contentId": "[variables('analyticRuleObject5')._analyticRulecontentId5]",
+              "version": "[variables('analyticRuleObject5').analyticRuleVersion5]"
+            },
+            {
+              "kind": "AnalyticsRule",
+              "contentId": "[variables('analyticRuleObject6')._analyticRulecontentId6]",
+              "version": "[variables('analyticRuleObject6').analyticRuleVersion6]"
             }
           ]
         },

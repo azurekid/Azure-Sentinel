@@ -1,0 +1,37 @@
+let NextDNS_Parser = () {
+    union isfuzzy=true NextDNS_CL,
+    datatable(
+        TimeGenerated:datetime,
+        profileId:string,
+        domain:string,
+        root:string,
+        status:string,
+        queryType:string,
+        protocol:string,
+        encrypted:bool,
+        clientIp:string,
+        client:string,
+        tracker:string,
+        deviceName:string,
+        deviceId:string,
+        deviceModel:string,
+        reasons:string,
+        device:dynamic,
+        RawData:dynamic
+    )[]
+    | extend TimeGenerated = coalesce(todatetime(column_ifexists("TimeGenerated", datetime(null))), now())
+    // Support both current normalized schema and older _s/_b suffixed columns.
+    | extend profileId = tostring(coalesce(column_ifexists("profileId", ""), column_ifexists("profileId_s", "")))
+    | extend domain = tostring(coalesce(column_ifexists("domain", ""), column_ifexists("domain_s", ""))), root = tostring(coalesce(column_ifexists("root", ""), column_ifexists("root_s", ""))), status = tostring(coalesce(column_ifexists("status", ""), column_ifexists("status_s", "")))
+    | extend queryType = tostring(coalesce(column_ifexists("queryType", ""), column_ifexists("type", ""))), protocol = tostring(coalesce(column_ifexists("protocol", ""), column_ifexists("protocol_s", ""))), encrypted = tobool(coalesce(column_ifexists("encrypted", false), column_ifexists("encrypted_b", false)))
+    | extend clientIp = tostring(coalesce(column_ifexists("clientIp", ""), column_ifexists("clientIp_s", ""))), client = tostring(column_ifexists("client", "")), tracker = tostring(column_ifexists("tracker", ""))
+    | extend deviceName = tostring(coalesce(column_ifexists("deviceName", ""), column_ifexists("deviceName_s", ""))), deviceId = tostring(column_ifexists("deviceId", "")), deviceModel = tostring(column_ifexists("deviceModel", ""))
+    | extend reasons = tostring(coalesce(column_ifexists("reasons", ""), column_ifexists("reasons_s", ""))), device = column_ifexists("device", dynamic(null)), RawData = coalesce(column_ifexists("RawData", dynamic(null)), pack_all())
+    | extend EventVendor = "NextDNS", EventProduct = "NextDNS", EventSchema = "Dns", EventSchemaVersion = "0.1.0", EventType = "DnsQuery"
+    | extend Dvc = tostring(deviceName), DvcId = tostring(deviceId), DvcModelName = tostring(deviceModel), SrcIpAddr = tostring(clientIp)
+    | extend DnsQuery = tostring(domain), DnsQueryDomain = tostring(root), DnsQueryTypeName = tostring(queryType), NetworkProtocol = tostring(protocol)
+    | extend EventResult = iff(tolower(tostring(status)) == "blocked", "Failure", "Success"), EventResultDetails = tostring(status)
+    | extend AdditionalFields = bag_pack("ProfileId", tostring(profileId), "Reasons", tostring(reasons), "Encrypted", tobool(encrypted), "Client", tostring(client), "Tracker", tostring(tracker), "Device", device)
+    | project TimeGenerated, EventVendor, EventProduct, EventSchema, EventSchemaVersion, EventType, EventResult, EventResultDetails, Dvc, DvcId, DvcModelName, SrcIpAddr, DnsQuery, DnsQueryDomain, DnsQueryTypeName, NetworkProtocol, AdditionalFields, RawData
+};
+NextDNS_Parser()

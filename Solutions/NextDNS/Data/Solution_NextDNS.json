@@ -1,16 +1,24 @@
 {
   "Name": "NextDNS",
-  "Author": "Rogier Dijkman",
+  "Author": "Rogier Dijkman - rogier.dijkman@azurehacking.com",
   "Logo": "<img src=\"https://raw.githubusercontent.com/Azure/Azure-Sentinel/master/Logos/Azure_Sentinel.svg\" width=\"75px\" height=\"75px\">",
   "Description": "The NextDNS solution for Microsoft Sentinel enables you to ingest DNS logs and analytics aggregates from NextDNS into Microsoft Sentinel.\n\n **Underlying Microsoft Technologies used:**\n\n This solution takes a dependency on the following technologies, and some dependencies may be in Preview state or may incur ingestion costs:\n\n - [Microsoft Sentinel Codeless Connector Framework](https://aka.ms/Sentinel-CCP_Platform)",
   "Parsers": [
     "Parsers/parser_NextDNSAliasFunction.json",
     "Parsers/parser_NextDNSAnalyticsAliasFunction.json"
   ],
+  "Analytic Rules": [
+    "Analytic Rules/NextDNS - Blocked domain spike.yaml",
+    "Analytic Rules/NextDNS - Potential DNS tunneling.yaml",
+    "Analytic Rules/NextDNS - Newly observed domain burst.yaml",
+    "Analytic Rules/NextDNS - Malicious category blocked surge.yaml",
+    "Analytic Rules/NextDNS - Analytics blocked ratio spike by profile.yaml",
+    "Analytic Rules/NextDNS - Analytics malicious reason concentration.yaml"
+  ],
   "Data Connectors": [
     "Data Connectors/NextDNS_CCP/NextDNS_ConnectorDefinition.json"
   ],
-  "BasePath": "C:\\GitHub\\home-assistant\\MSPIMManager\\Public\\SecurityAlerts\\SentinelCCP\\NextDNS",
+  "BasePath": "C:\\GitHub\\azure-sentinel\\Solutions\\NextDNS",
   "Version": "1.0.0",
   "Metadata": "SolutionMetadata.json",
   "TemplateSpec": false,

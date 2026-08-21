@@ -1,0 +1,49 @@
+id: 2ef5ea4c-0c59-4d0e-9838-cfb0ab1b2f26
+name: NextDNS analytics blocked ratio spike by profile
+version: 1.0.0
+kind: Scheduled
+description: |
+  This query searches for profiles with unusually high blocked share in analytics status snapshots.
+severity: Medium
+status: Available
+requiredDataConnectors:
+  - connectorId: NextDNSConnector
+    dataTypes:
+      - NextDNSAnalytics_CL
+queryFrequency: 15m
+queryPeriod: 2h
+triggerOperator: gt
+triggerThreshold: 0
+tactics:
+  - CommandAndControl
+  - Exfiltration
+relevantTechniques:
+  - T1071.004
+  - T1048
+query: |
+  let recentWindow = 2h;
+  let statusData = NextDNSAnalytics_Parser()
+  | where TimeGenerated >= ago(recentWindow)
+  | where metric == 'status'
+  | project TimeGenerated, profileId, itemName = tolower(itemName), queryCount;
+  let blocked = statusData
+  | where itemName == 'blocked'
+  | summarize blockedQueries = sum(queryCount) by profileId;
+  let total = statusData
+  | summarize totalQueries = sum(queryCount) by profileId;
+  blocked
+  | join kind=inner total on profileId
+  | extend blockedRatio = iff(totalQueries == 0, 0.0, todouble(blockedQueries) / todouble(totalQueries))
+  | where blockedQueries >= 500 and blockedRatio >= 0.4
+  | project TimeGenerated = now(), profileId, blockedQueries, totalQueries, blockedRatio
+suppressionEnabled: false
+suppressionDuration: 5h
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: 2h
+    matchingMethod: AllEntities
+eventGroupingSettings:
+  aggregationKind: SingleAlert

@@ -1,0 +1,51 @@
+id: 9b8d90c2-0f6a-4c2f-8d1f-6e7162e82d11
+name: NextDNS blocked domain spike
+version: 1.0.0
+kind: Scheduled
+description: |
+  This query searches for unusual spikes in blocked DNS events from NextDNS.
+severity: Medium
+status: Available
+requiredDataConnectors:
+  - connectorId: NextDNSConnector
+    dataTypes:
+      - NextDNS_CL
+queryFrequency: 5m
+queryPeriod: 15m
+triggerOperator: gt
+triggerThreshold: 0
+tactics:
+  - CommandAndControl
+  - Exfiltration
+relevantTechniques:
+  - T1071.004
+  - T1048
+query: |
+  let baselineWindow = 1d;
+  let recentWindow = 15m;
+  let parser = NextDNS_Parser()
+  | where EventSchema =~ 'Dns'
+  | where EventResult =~ 'Failure'
+  | extend ProfileId = tostring(AdditionalFields.ProfileId), Reasons = tostring(AdditionalFields.Reasons);
+  let baseline = parser
+  | where TimeGenerated between (ago(baselineWindow) .. ago(recentWindow))
+  | summarize baselineBlocked = count() by ProfileId, SrcIpAddr;
+  let recent = parser
+  | where TimeGenerated >= ago(recentWindow)
+  | summarize recentBlocked = count(), SampleDomains = make_set(DnsQuery, 5), SampleReasons = make_set(Reasons, 3) by ProfileId, SrcIpAddr, Dvc;
+  recent
+  | join kind=leftouter baseline on ProfileId, SrcIpAddr
+  | extend baselineBlocked = coalesce(baselineBlocked, 0)
+  | where recentBlocked >= 100 and recentBlocked > baselineBlocked * 3
+  | project TimeGenerated = now(), ProfileId, SrcIpAddr, Dvc, recentBlocked, baselineBlocked, SampleDomains, SampleReasons
+suppressionEnabled: false
+suppressionDuration: 5h
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: 1h
+    matchingMethod: AllEntities
+eventGroupingSettings:
+  aggregationKind: SingleAlert

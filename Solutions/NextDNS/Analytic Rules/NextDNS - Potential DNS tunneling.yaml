@@ -1,0 +1,40 @@
+id: f5e6bcbc-4cca-4d97-8b95-a7bb7ac9c2a2
+name: NextDNS potential DNS tunneling
+version: 1.0.0
+kind: Scheduled
+description: |
+  This query searches for high unique-query volume to the same root domain from a single source over a short period.
+severity: High
+status: Available
+requiredDataConnectors:
+  - connectorId: NextDNSConnector
+    dataTypes:
+      - NextDNS_CL
+queryFrequency: 5m
+queryPeriod: 15m
+triggerOperator: gt
+triggerThreshold: 0
+tactics:
+  - Exfiltration
+  - CommandAndControl
+relevantTechniques:
+  - T1071.004
+query: |
+  let recentWindow = 15m;
+  NextDNS_Parser()
+  | where TimeGenerated >= ago(recentWindow)
+  | where EventSchema =~ 'Dns'
+  | summarize TotalQueries = count(), UniqueQueries = dcount(DnsQuery), SampleQueries = make_set(DnsQuery, 10) by ProfileId = tostring(AdditionalFields.ProfileId), SrcIpAddr, DnsQueryDomain, Dvc
+  | where UniqueQueries >= 50 and TotalQueries >= 200
+  | project TimeGenerated = now(), ProfileId, SrcIpAddr, Dvc, DnsQueryDomain, TotalQueries, UniqueQueries, SampleQueries
+suppressionEnabled: false
+suppressionDuration: 5h
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: 1h
+    matchingMethod: AllEntities
+eventGroupingSettings:
+  aggregationKind: SingleAlert

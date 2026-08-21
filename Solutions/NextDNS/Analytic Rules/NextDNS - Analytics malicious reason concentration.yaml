@@ -1,0 +1,42 @@
+id: d92426f6-7f77-4e66-8adc-4e6cfb8e8f70
+name: NextDNS analytics malicious reason concentration
+version: 1.0.0
+kind: Scheduled
+description: |
+  This query searches for high-volume blocked reason categories from analytics aggregates to quickly identify broad threat campaigns.
+severity: Medium
+status: Available
+requiredDataConnectors:
+  - connectorId: NextDNSConnector
+    dataTypes:
+      - NextDNSAnalytics_CL
+queryFrequency: 15m
+queryPeriod: 2h
+triggerOperator: gt
+triggerThreshold: 0
+tactics:
+  - CommandAndControl
+  - Execution
+relevantTechniques:
+  - T1071.004
+  - T1059
+query: |
+  NextDNSAnalytics_Parser()
+  | where TimeGenerated >= ago(2h)
+  | where metric == 'reasons'
+  | extend reason = tolower(itemName)
+  | where reason has 'malware' or reason has 'phishing' or reason has 'botnet' or reason has 'cryptomining' or reason has 'c2'
+  | summarize blockedQueries = sum(queryCount), maxPct = max(percentage) by profileId, reason
+  | where blockedQueries >= 200
+  | project TimeGenerated = now(), profileId, reason, blockedQueries, maxPct
+suppressionEnabled: false
+suppressionDuration: 5h
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: 2h
+    matchingMethod: AllEntities
+eventGroupingSettings:
+  aggregationKind: SingleAlert

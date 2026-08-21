@@ -1,0 +1,23 @@
+let NextDNSAnalytics_Parser = () {
+    union isfuzzy=true NextDNSAnalytics_CL,
+    datatable(
+        TimeGenerated:datetime,
+        profileId:string,
+        metric:string,
+        name:string,
+        status:string,
+        queryCount:long,
+        percentage:real
+    )[]
+    | extend TimeGenerated = coalesce(todatetime(column_ifexists("TimeGenerated", datetime(null))), now())
+    | extend profileId  = tostring(coalesce(column_ifexists("profileId", ""), column_ifexists("profileId_s", "")))
+    | extend metric     = tostring(column_ifexists("metric", ""))
+    | extend queryCount = tolong(coalesce(column_ifexists("queryCount", 0), column_ifexists("queries", 0)))
+    | extend percentage = toreal(column_ifexists("percentage", 0.0))
+    | extend _name      = tostring(column_ifexists("name", ""))
+    | extend _status    = tostring(column_ifexists("status", ""))
+    | extend itemName   = iff(isnotempty(_name), _name, _status)
+    | extend EventVendor = "NextDNS", EventProduct = "NextDNS"
+    | project TimeGenerated, EventVendor, EventProduct, profileId, metric, itemName, queryCount, percentage
+};
+NextDNSAnalytics_Parser()

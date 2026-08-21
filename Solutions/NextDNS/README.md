@@ -63,24 +63,6 @@ Legacy and source helper files are still present:
 - profiles: Array of NextDNS profile IDs
 - nextDnsApiKeySecretUri: Secure value used by APIKey auth in RestApiPoller
 
-## Deployment
-
-Deploy the package template at:
-- MSPIMManager/Public/SecurityAlerts/SentinelCCP/NextDNS/Package/mainTemplate.json
-
-With parameters from:
-- MSPIMManager/Public/SecurityAlerts/SentinelCCP/NextDNS/Package/testParameters.json
-
-Example command:
-
-az deployment group create \
-  --resource-group <resource-group> \
-  --template-file MSPIMManager/Public/SecurityAlerts/SentinelCCP/NextDNS/Package/mainTemplate.json \
-  --parameters workspace=<workspace-name> \
-               workspace-location=<workspace-region> \
-               profiles='["1d96ff","9387a4"]' \
-               nextDnsApiKeySecretUri=<nextdns-api-key>
-
 ## Parser-first detection model
 
 All scheduled rules are based on parser functions, not direct table queries.

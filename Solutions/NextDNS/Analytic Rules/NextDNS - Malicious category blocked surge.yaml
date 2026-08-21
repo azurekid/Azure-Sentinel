@@ -1,0 +1,42 @@
+id: f88d1973-9d57-4868-8bcc-fb1dc4c6ac25
+name: NextDNS malicious category blocked surge
+version: 1.0.0
+kind: Scheduled
+description: |
+  This query searches for repeated blocked DNS queries tied to high-risk categories such as malware, phishing, botnet, cryptomining, and C2-like indicators.
+severity: Medium
+status: Available
+requiredDataConnectors:
+  - connectorId: NextDNSConnector
+    dataTypes:
+      - NextDNS_CL
+queryFrequency: 5m
+queryPeriod: 15m
+triggerOperator: gt
+triggerThreshold: 0
+tactics:
+  - CommandAndControl
+  - Execution
+relevantTechniques:
+  - T1071.004
+  - T1059
+query: |
+  NextDNS_Parser()
+  | where TimeGenerated >= ago(15m)
+  | where EventSchema =~ 'Dns' and EventResult =~ 'Failure'
+  | extend ProfileId = tostring(AdditionalFields.ProfileId), Reasons = tolower(tostring(AdditionalFields.Reasons))
+  | where Reasons has 'malware' or Reasons has 'phishing' or Reasons has 'botnet' or Reasons has 'cryptomining' or Reasons has 'rebind' or Reasons has 'newly registered' or Reasons has 'c2'
+  | summarize BlockedCount = count(), SampleDomains = make_set(DnsQuery, 10), SampleReasons = make_set(Reasons, 5) by ProfileId, SrcIpAddr, Dvc
+  | where BlockedCount >= 10
+  | project TimeGenerated = now(), ProfileId, SrcIpAddr, Dvc, BlockedCount, SampleDomains, SampleReasons
+suppressionEnabled: false
+suppressionDuration: 5h
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: 1h
+    matchingMethod: AllEntities
+eventGroupingSettings:
+  aggregationKind: SingleAlert

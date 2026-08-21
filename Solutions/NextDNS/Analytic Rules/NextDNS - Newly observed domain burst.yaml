@@ -1,0 +1,46 @@
+id: 5c4f8ef9-9bb6-4b88-a2c7-4e9ca508ec7a
+name: NextDNS newly observed domain burst
+version: 1.0.0
+kind: Scheduled
+description: |
+  This query searches for spikes in domains not seen in the prior baseline window, potentially indicating phishing or malware infrastructure churn.
+severity: Medium
+status: Available
+requiredDataConnectors:
+  - connectorId: NextDNSConnector
+    dataTypes:
+      - NextDNS_CL
+queryFrequency: 15m
+queryPeriod: 1h
+triggerOperator: gt
+triggerThreshold: 0
+tactics:
+  - CommandAndControl
+  - InitialAccess
+relevantTechniques:
+  - T1071.004
+  - T1566
+query: |
+  let baseline = NextDNS_Parser()
+  | where TimeGenerated between (ago(14d) .. ago(1h))
+  | where EventSchema =~ 'Dns'
+  | summarize by DnsQueryDomain;
+  let recent = NextDNS_Parser()
+  | where TimeGenerated >= ago(1h)
+  | where EventSchema =~ 'Dns'
+  | summarize QueryCount = count(), SrcIps = dcount(SrcIpAddr), Devices = dcount(Dvc), SampleQueries = make_set(DnsQuery, 10) by DnsQueryDomain, ProfileId = tostring(AdditionalFields.ProfileId);
+  recent
+  | join kind=leftanti baseline on DnsQueryDomain
+  | where QueryCount >= 25 and SrcIps >= 3
+  | project TimeGenerated = now(), ProfileId, DnsQueryDomain, QueryCount, SrcIps, Devices, SampleQueries
+suppressionEnabled: false
+suppressionDuration: 5h
+incidentConfiguration:
+  createIncident: true
+  groupingConfiguration:
+    enabled: true
+    reopenClosedIncident: false
+    lookbackDuration: 2h
+    matchingMethod: AllEntities
+eventGroupingSettings:
+  aggregationKind: SingleAlert
