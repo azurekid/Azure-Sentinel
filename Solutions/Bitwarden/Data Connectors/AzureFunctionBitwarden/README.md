@@ -48,7 +48,7 @@ Authentication uses the **OAuth 2.0 client credentials** flow against the Bitwar
 | Azure subscription | Contributor access to the target resource group |
 | Bitwarden plan | Enterprise or Teams plan required for Public API access |
 | Bitwarden organisation API key | `client_id` + `client_secret` (see below) |
-| Python | 3.11 (runtime provided by Azure Functions) |
+| PowerShell | 7.4 (runtime provided by Azure Functions) |
 
 ### Obtaining a Bitwarden organisation API key
 
@@ -107,23 +107,22 @@ Authentication uses the **OAuth 2.0 client credentials** flow against the Bitwar
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│  Azure Function App  (Linux, Python 3.11, Consumption plan) │
-│                                                             │
-│  BitwardenTimerTrigger  (cron: 0 */5 * * * *)              │
-│  ┌──────────────────┐   ┌──────────────────┐               │
-│  │  bitwarden_      │   │  sentinel_        │               │
-│  │  client.py       │   │  uploader.py      │               │
-│  │                  │   │                   │               │
-│  │  OAuth2 token    │──▶│  LogsIngestion    │               │
-│  │  (cached 1h)     │   │  Client (DCR)     │               │
-│  │  GET /public/    │   │                   │               │
-│  │    events        │   │  3 × DCR          │               │
-│  │    members       │   │  (Events /        │               │
-│  │    groups        │   │   Members /       │               │
-│  └──────────────────┘   │   Groups)         │               │
-│                         └──────────────────┘               │
-└────────────────────────────────┬────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│  Azure Function App  (Windows, PowerShell 7.4, Consumption)  │
+│                                                              │
+│  BitwardenTimerTrigger  (cron: 0 */5 * * * *)               │
+│  ┌───────────────────────────────────────────┐              │
+│  │  run.ps1                                  │              │
+│  │                                           │              │
+│  │  Get-BitwardenToken  (OAuth2, cached 1h)  │              │
+│  │  Get-BitwardenAllPages  (pagination)      │──▶ DCR POST  │
+│  │    /public/events  (time-windowed)        │              │
+│  │    /public/members                        │  3 × DCR     │
+│  │    /public/groups                         │  (Events /   │
+│  │                                           │   Members /  │
+│  │  Send-ToDcr  (Invoke-RestMethod + token)  │   Groups)    │
+│  └───────────────────────────────────────────┘              │
+└─────────────────────────────────┬────────────────────────────┘
                                  │
               ┌──────────────────▼──────────────────┐
               │  Azure Monitor – Logs Ingestion API  │
@@ -154,8 +153,8 @@ Secret management:
 | Role assignments (×3) | Grants **Monitoring Metrics Publisher** on each DCR |
 | Application Insights | Function App telemetry and logging |
 | Storage Account | Required by the Azure Functions runtime |
-| App Service Plan | Consumption (serverless) Linux plan |
-| Function App | Hosts the timer-triggered Python function |
+| App Service Plan | Consumption (serverless) Windows plan |
+| Function App | Hosts the timer-triggered PowerShell function |
 
 ---
 
@@ -393,76 +392,136 @@ Set `LOG_LEVEL=DEBUG` in the Function App application settings to get detailed r
 
 ## Local development
 
+Testing locally lets you verify Bitwarden connectivity and data shape before deploying to Azure.
+
 ### Requirements
 
-- Python 3.11+
-- [Azure Functions Core Tools v4](https://learn.microsoft.com/azure/azure-functions/functions-run-local)
-- A `.env` file (see below)
+| Tool | Install |
+|---|---|
+| PowerShell 7.4+ | [github.com/PowerShell/PowerShell](https://github.com/PowerShell/PowerShell/releases) |
+| Azure Functions Core Tools v4 | `npm install -g azure-functions-core-tools@4 --unsafe-perm true` |
+| Azure CLI | [docs.microsoft.com](https://learn.microsoft.com/cli/azure/install-azure-cli) |
+| Az PowerShell module | `Install-Module Az -Scope CurrentUser` |
 
-### Setup
+### Step 1 – Log in to Azure
 
-```bash
+The function uses `Connect-AzAccount -Identity` (Managed Identity) in Azure. Locally, `profile.ps1` calls this on cold start. For local dev, log in interactively first:
+
+```powershell
+Connect-AzAccount
+# If you have multiple tenants:
+Connect-AzAccount -Tenant <your-tenant-id>
+```
+
+### Step 2 – Create a `local.settings.json`
+
+The Azure Functions runtime reads configuration from `local.settings.json` (in the `AzureFunctionBitwarden/` folder). This file is equivalent to the app settings in Azure and **must never be committed**.
+
+```json
+{
+  "IsEncrypted": false,
+  "Values": {
+    "FUNCTIONS_WORKER_RUNTIME": "powershell",
+    "FUNCTIONS_WORKER_RUNTIME_VERSION": "7.4",
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+
+    "BITWARDEN_CLIENT_ID": "organization.<your-uuid>",
+    "BITWARDEN_CLIENT_SECRET": "<your-client-secret>",
+
+    "AZURE_DCE_ENDPOINT": "https://<dce-name>.<region>.ingest.monitor.azure.com",
+    "AZURE_DCR_EVENTS_IMMUTABLEID": "dcr-<immutable-id>",
+    "AZURE_DCR_MEMBERS_IMMUTABLEID": "dcr-<immutable-id>",
+    "AZURE_DCR_GROUPS_IMMUTABLEID": "dcr-<immutable-id>",
+
+    "BITWARDEN_EVENT_LOOKBACK_MINUTES": "5"
+  }
+}
+```
+
+**Bitwarden endpoint options** — add one of these to the `Values` block:
+
+```json
+// Cloud US (default — nothing extra needed)
+
+// Cloud EU
+"BITWARDEN_CLOUD_REGION": "eu",
+
+// Self-hosted
+"BITWARDEN_IDENTITY_URL": "https://bw.example.com/identity",
+"BITWARDEN_API_URL": "https://bw.example.com/api",
+```
+
+**Finding the DCR values** — after deploying the ARM template, run:
+
+```powershell
+$rg = 'rg-bitwarden-sentinel'
+
+# Data Collection Endpoint URL
+az monitor data-collection endpoint list `
+  --resource-group $rg `
+  --query "[].{name:name, endpoint:logsIngestion.endpoint}" -o table
+
+# DCR immutable IDs
+az monitor data-collection rule list `
+  --resource-group $rg `
+  --query "[].{name:name, id:immutableId}" -o table
+```
+
+### Step 3 – Start the function runtime
+
+```powershell
 cd "Solutions/Bitwarden/Data Connectors/AzureFunctionBitwarden"
-
-# Create and activate a virtual environment
-python -m venv .venv
-source .venv/bin/activate        # macOS/Linux
-# .venv\Scripts\Activate.ps1    # Windows PowerShell
-
-# Install dependencies
-pip install -r requirements.txt
-```
-
-### `.env` file
-
-Create `BitwardenTimerTrigger/.env` (never commit this file):
-
-```env
-# Bitwarden credentials
-BITWARDEN_CLIENT_ID=organization.<your-uuid>
-BITWARDEN_CLIENT_SECRET=<your-client-secret>
-
-# Bitwarden endpoints – choose one option:
-
-# Option 1: Bitwarden Cloud US (default – leave these unset or use region)
-# BITWARDEN_CLOUD_REGION=us
-
-# Option 2: Bitwarden Cloud EU
-# BITWARDEN_CLOUD_REGION=eu
-
-# Option 3: Self-hosted
-# BITWARDEN_IDENTITY_URL=https://bw.example.com/identity
-# BITWARDEN_API_URL=https://bw.example.com/api
-
-# Azure Monitor / DCR (get from deployed resources)
-AZURE_DCE_ENDPOINT=https://<dce-name>.<region>.ingest.monitor.azure.com
-AZURE_DCR_EVENTS_IMMUTABLEID=dcr-<id>
-AZURE_DCR_MEMBERS_IMMUTABLEID=dcr-<id>
-AZURE_DCR_GROUPS_IMMUTABLEID=dcr-<id>
-
-# Azure identity (for local dev use DefaultAzureCredential or set these)
-# AZURE_CLIENT_ID=<managed-identity-client-id>
-# AZURE_TENANT_ID=<your-tenant-id>
-# AZURE_CLIENT_SECRET=<your-sp-secret>   # only for service principal auth
-
-# Optional
-LOG_LEVEL=DEBUG
-BITWARDEN_EVENT_LOOKBACK_MINUTES=5
-```
-
-### Run locally
-
-```bash
 func start
 ```
 
-The timer trigger will not fire automatically on a schedule locally. To invoke it manually:
+You should see output like:
 
-```bash
-# In a second terminal
-curl -X POST "http://localhost:7071/admin/functions/BitwardenTimerTrigger" \
-  -H "Content-Type: application/json" \
-  -d '{}'
+```
+Functions:
+    BitwardenTimerTrigger: timerTrigger
 ```
 
-> **Note:** Local execution writes to the real DCR endpoints. Use a non-production Sentinel workspace for testing.
+### Step 4 – Trigger the function manually
+
+The timer does **not** fire automatically on the cron schedule when running locally. Invoke it manually from a second terminal:
+
+```powershell
+Invoke-RestMethod `
+  -Uri 'http://localhost:7071/admin/functions/BitwardenTimerTrigger' `
+  -Method POST `
+  -ContentType 'application/json' `
+  -Body '{}'
+```
+
+### What to expect
+
+A successful run prints:
+
+```
+Bitwarden connector started at 2026-08-21T10:00:00.0000000Z
+Using Bitwarden Cloud US endpoints.
+Using Bitwarden client_secret from environment variable.
+Requesting Bitwarden access token from https://identity.bitwarden.com/connect/token
+Bitwarden access token obtained. Valid until ~10:59:00 UTC.
+Fetching Bitwarden events from 2026-08-21T09:55:00.000000Z to 2026-08-21T10:00:00.000000Z
+Page 1: fetched 12 items (total: 12)
+Fetched 12 Bitwarden events.
+Uploading 12 records to stream 'Custom-BitwardenEventLogs_CL' (DCR: dcr-...).
+Successfully uploaded 12 records to 'Custom-BitwardenEventLogs_CL'.
+Fetched 45 Bitwarden members.
+Fetched 8 Bitwarden groups.
+Bitwarden connector finished in 3.2s. Events: 12, Members: 45, Groups: 8.
+```
+
+> **Note:** Local execution writes to the **real DCR endpoints** in Azure. Use a non-production Sentinel workspace for testing.
+
+### Fetch-only mode (no Sentinel writes)
+
+To test Bitwarden API connectivity without writing to Sentinel, comment out the `Send-ToDcr` calls in `run.ps1`:
+
+```powershell
+# Send-ToDcr -DceEndpoint $DceEndpoint `
+#            -DcrImmutableId $DcrEventsImmutableId `
+#            -StreamName 'Custom-BitwardenEventLogs_CL' `
+#            -Records $eventRecords
+```

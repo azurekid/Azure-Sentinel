@@ -487,13 +487,13 @@
       "apiVersion": "2022-03-01",
       "name": "[variables('FunctionName')]",
       "location": "[resourceGroup().location]",
-      "kind": "linux",
+      "kind": "functionapp",
       "sku": {
         "name": "Y1",
         "tier": "Dynamic"
       },
       "properties": {
-        "reserved": true
+        "reserved": false
       }
     },
     {
@@ -501,7 +501,7 @@
       "apiVersion": "2022-03-01",
       "name": "[variables('FunctionName')]",
       "location": "[resourceGroup().location]",
-      "kind": "functionapp,linux",
+      "kind": "functionapp",
       "dependsOn": [
         "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName'))]",
         "[resourceId('Microsoft.Web/serverfarms', variables('FunctionName'))]",
@@ -522,10 +522,10 @@
       "properties": {
         "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('FunctionName'))]",
         "httpsOnly": true,
-        "reserved": true,
+        "reserved": false,
         "keyVaultReferenceIdentity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName'))]",
         "siteConfig": {
-          "linuxFxVersion": "Python|3.11",
+            "linuxFxVersion": "PowerShell|7.4",
           "minTlsVersion": "1.2",
           "ftpsState": "Disabled",
           "appSettings": [
@@ -535,7 +535,11 @@
             },
             {
               "name": "FUNCTIONS_WORKER_RUNTIME",
-              "value": "python"
+              "value": "powershell"
+            },
+            {
+              "name": "FUNCTIONS_WORKER_RUNTIME_VERSION",
+              "value": "7.4"
             },
             {
               "name": "AzureWebJobsStorage",

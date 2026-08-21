@@ -1,22 +1,19 @@
 {
   "version": "2.0",
+  "functionTimeout": "00:10:00",
+  "managedDependency": {
+    "enabled": true
+  },
   "logging": {
     "applicationInsights": {
       "samplingSettings": {
         "isEnabled": true,
         "excludedTypes": "Request"
       }
-    },
-    "logLevel": {
-      "default": "Information",
-      "Host.Results": "Information",
-      "Function": "Information",
-      "Host.Aggregator": "Trace"
     }
   },
   "extensionBundle": {
     "id": "Microsoft.Azure.Functions.ExtensionBundle",
-    "version": "[4.*, 5.0.0)"
-  },
-  "functionTimeout": "00:10:00"
+    "version": "[4.0.0, 5.0.0)"
+  }
 }
