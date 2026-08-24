@@ -1,5 +1,36 @@
 # Bitwarden → Microsoft Sentinel — Azure Function App Connector
 
+## Overview
+
+This connector allows you to sync your Bitwarden passwords with Microsoft Sentinel, making it easier to manage and monitor your passwords in a centralized location.
+
+## Prerequisites
+
+Before you begin, make sure you have the following:
+
+- A Bitwarden account
+- A Microsoft Sentinel workspace
+- An Azure Function App
+
+## Installation
+
+1. Clone this repository to your local machine.
+2. Install the required dependencies by running `npm install` in the root directory.
+3. Configure the connector by editing the `config.json` file.
+4. Deploy the Azure Function App by running `func azure functionapp publish <your-function-app-name>`.
+
+## Usage
+
+To use the connector, simply log in to your Bitwarden account and connect it to your Microsoft Sentinel workspace. The connector will automatically sync your passwords with Microsoft Sentinel.
+
+## Contributing
+
+Contributions are welcome! If you find a bug or have a feature request, please open an issue or submit a pull request.
+
+## License
+
+This project is licensed under the MIT License.
+
 This connector pulls data from the [Bitwarden Public API](https://bitwarden.com/help/public-api/) into Microsoft Sentinel using a time-triggered Python Azure Function App. It supports **Bitwarden Cloud US**, **Bitwarden Cloud EU**, and **self-hosted / on-premises Bitwarden servers**.
 
 ---
