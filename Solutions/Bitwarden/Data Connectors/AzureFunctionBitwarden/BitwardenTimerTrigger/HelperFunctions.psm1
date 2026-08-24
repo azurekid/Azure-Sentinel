@@ -101,6 +101,43 @@ function Get-BitwardenClientSecret {
     return $EnvFallback
 }
 
+function Get-BitwardenToken {
+    param(
+        [string]$IdentityBaseUrl,
+        [string]$ClientId,
+        [string]$ClientSecret
+    )
+
+    $now = [System.DateTime]::UtcNow
+
+    if ($script:BwAccessToken -and $now -lt $script:BwTokenExpires) {
+        return $script:BwAccessToken
+    }
+
+    $tokenUrl = "$IdentityBaseUrl/connect/token"
+    $body = "grant_type=client_credentials&scope=api.organization&client_id=$([System.Uri]::EscapeDataString($ClientId))&client_secret=$([System.Uri]::EscapeDataString($ClientSecret))"
+
+    Write-Host "Requesting Bitwarden access token from $tokenUrl"
+
+    $response = Invoke-RestMethod `
+        -Uri     $tokenUrl `
+        -Method  POST `
+        -Headers @{ 'Accept' = 'application/json'; 'Content-Type' = 'application/x-www-form-urlencoded' } `
+        -Body    $body `
+        -ErrorAction Stop
+
+    if ([string]::IsNullOrWhiteSpace($response.access_token)) {
+        throw "Bitwarden token response did not contain 'access_token'."
+    }
+
+    $expiresIn = if ($response.expires_in) { [int]$response.expires_in } else { 3600 }
+    $script:BwAccessToken  = $response.access_token
+    $script:BwTokenExpires = $now.AddSeconds($expiresIn - $TokenExpiryBufferSec)
+
+    Write-Host "Bitwarden access token obtained. Valid until ~$($script:BwTokenExpires.ToString('HH:mm:ss')) UTC."
+    return $script:BwAccessToken
+}
+
 function Invoke-BitwardenGet {
     param(
         [string]   $Url,
