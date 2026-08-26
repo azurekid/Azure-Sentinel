@@ -40,23 +40,20 @@ Function Send-Data {
 }
 
 function Get-BitwardenToken {
-    param(
-        [string]$IdentityBaseUrl
-    )
 
     $now = [System.DateTime]::UtcNow
 
-    if ($script:BwAccessToken -and $now -lt $script:BwTokenExpires) {
-        return $script:BwAccessToken
+    if ($Script:BwAccessToken -and $now -lt $Script:BwTokenExpires) {
+        return $Script:BwAccessToken
     }
 
-    $BitwardenClientId = $env:BITWARDEN_CLIENT_ID
+    $BitwardenClientId     = $env:BITWARDEN_CLIENT_ID
     $BitwardenClientSecret = $env:BITWARDEN_CLIENT_SECRET
 
-    $tokenUrl = "$IdentityBaseUrl/connect/token"
-    $body = "grant_type=client_credentials&scope=api.organization&client_id=$([System.Uri]::EscapeDataString($BitwardenClientId))&client_secret=$([System.Uri]::EscapeDataString($BitwardenClientSecret))"
+    $tokenUrl = "$Script:BitwardenIdentityUrl/connect/token"
+    $body     = "grant_type=client_credentials&scope=api.organization&client_id=$([System.Uri]::EscapeDataString($BitwardenClientId))&client_secret=$([System.Uri]::EscapeDataString($BitwardenClientSecret))"
 
-    Write-Host "Requesting Bitwarden access token from $tokenUrl"
+    Write-Host "Get-BitwardenToken: Requesting Bitwarden access token from $tokenUrl"
 
     $response = Invoke-RestMethod `
         -Uri     $tokenUrl `
@@ -66,15 +63,70 @@ function Get-BitwardenToken {
         -ErrorAction Stop
 
     if ([string]::IsNullOrWhiteSpace($response.access_token)) {
-        throw "Bitwarden token response did not contain 'access_token'."
+        throw "Get-BitwardenToken: Bitwarden token response did not contain 'access_token'."
     }
 
     $expiresIn = if ($response.expires_in) { [int]$response.expires_in } else { 3600 }
-    $script:BwAccessToken = $response.access_token | ConvertTo-SecureString -AsPlainText -Force
-    $script:BwTokenExpires = $now.AddSeconds($expiresIn - $TokenExpiryBufferSec)
+    $Script:BwAccessToken = $response.access_token | ConvertTo-SecureString -AsPlainText -Force
+    $Script:BwTokenExpires = $now.AddSeconds($expiresIn - $TokenExpiryBufferSec)
 
-    Write-Host "Bitwarden access token obtained. Valid until ~ $($script:BwTokenExpires.ToString('HH:mm:ss')) UTC."
-    return $script:BwAccessToken
+    Write-Host "Get-BitwardenToken: Bitwarden access token obtained. Valid until ~ $($Script:BwTokenExpires.ToString('HH:mm:ss')) UTC."
+    return $Script:BwAccessToken
+}
+
+function Get-BitwardenEvents {
+    param(
+        [datetime]$Start,
+        [datetime]$End
+    )
+
+    $startStr = $Start.ToString('yyyy-MM-ddTHH:mm:ss.000000Z')
+    $endStr = $End.ToString('yyyy-MM-ddTHH:mm:ss.000000Z')
+
+    Write-Host "Get-BitwardenEvents: Fetching Bitwarden events from $startStr to $endStr"
+
+    $Events = Get-BitwardenAllPages `
+        -Url "$Script:ApiBaseUrl/public/events" `
+        -QueryParams @{ start = $startStr; end = $endStr }
+
+    return $Events
+}
+
+function Get-BitwardenAllPages {
+    param(
+        [string]   $Url,
+        [hashtable]$QueryParams = @{}
+    )
+
+    $allItems = [System.Collections.Generic.List[object]]::new()
+    $params = [hashtable]$QueryParams
+    $page = 0
+
+    do {
+        $page++
+        $data = Invoke-BitwardenGet -Url $Url -QueryParams $params
+        $items = $data.data
+        if ($items) { $allItems.AddRange([object[]]$items) }
+
+        Write-Host "Get-BitwardenAllPages: Page $page : fetched $($items.Count) items (total: $($allItems.Count))"
+
+        $nextToken = $data.continuationToken
+        $data = $null
+
+        if ($nextToken) {
+            Write-Verbose "Get-BitwardenAllPages: Next continuation token found: $nextToken"
+            $params['continuationToken'] = $nextToken
+        }
+        else {
+            Write-Verbose "Get-BitwardenAllPages: No more continuation tokens returned. Clearing parameter."
+            # Remove the key entirely so the 'while' condition becomes false
+            $params.Remove('continuationToken')
+        }
+
+        Write-Verbose "Get_BitwardenAllPages: Using query params for next page: $($params | ConvertTo-Json -Compress)"
+    } while ($params.continuationToken)
+
+    return $allItems.ToArray()
 }
 
 function Invoke-BitwardenGet {
@@ -83,7 +135,10 @@ function Invoke-BitwardenGet {
         [hashtable]$QueryParams = @{}
     )
 
-    Write-Host "Invoking Bitwarden GET $Url with query params: $($QueryParams | ConvertTo-Json -Compress)"
+    Get-BitwardenToken -IdentityBaseUrl $Script:BitwardenIdentityUrl | Out-Null
+
+    Write-Host "Invoke-BitwardenGet: GET $Url with query params: $($QueryParams | ConvertTo-Json -Compress)"
+
     $retryableStatusCodes = @(429, 500, 502, 503, 504)
     $reauthenticated = $false
     $MaxRetries = 3
@@ -104,7 +159,7 @@ function Invoke-BitwardenGet {
             $uri = '{0}?{1}' -f $Url, $qs
         }
 
-        Write-Host "Attempt $($attempt + 1)/$MaxRetries : GET $uri"
+        Write-Host "Invoke-BitwardenGet: Attempt $($attempt + 1)/$MaxRetries : GET $uri"
 
 
         try {
@@ -137,69 +192,15 @@ function Invoke-BitwardenGet {
                 continue
             }
 
-            throw "Bitwarden API error $statusCode for ${Url}: $_"
+            throw "Invoke-BitwardenGet: Bitwarden API error $statusCode for ${Url}: $_"
         }
     }
 
     throw "Exhausted retries for $Url."
 }
 
-function Get-BitwardenAllPages {
-    param(
-        [string]   $Url,
-        [hashtable]$QueryParams = @{}
-    )
-
-    $allItems = [System.Collections.Generic.List[object]]::new()
-    $params = [hashtable]$QueryParams
-    $page = 0
-    Write-Host "Initial query params: $($params | ConvertTo-Json -Compress)"
-
-    do {
-        $page++
-        $data = Invoke-BitwardenGet -Url $Url -QueryParams $params
-        $items = $data.data
-        if ($items) { $allItems.AddRange([object[]]$items) }
-
-        Write-Host "Page $page : fetched $($items.Count) items (total: $($allItems.Count))"
-
-        $nextToken = $data.continuationToken
-        $data = $null
-
-        if ($nextToken) {
-            Write-Host "Next continuation token found: $nextToken"
-            $params['continuationToken'] = $nextToken
-        }
-        else {
-            Write-Host "No more continuation tokens returned. Clearing parameter."
-            # Remove the key entirely so the 'while' condition becomes false
-            $params.Remove('continuationToken')
-        }
-
-        Write-Host "Using query params for next page: $($params | ConvertTo-Json -Compress)"
-    } while ($params.continuationToken)
-
-    return $allItems.ToArray()
-}
 
 
-function Get-BitwardenEvents {
-    param(
-        [datetime]$Start,
-        [datetime]$End
-    )
-
-    $startStr = $Start.ToString('yyyy-MM-ddTHH:mm:ss.000000Z')
-    $endStr = $End.ToString('yyyy-MM-ddTHH:mm:ss.000000Z')
-
-    Write-Host "Fetching Bitwarden events from $startStr to $endStr"
-
-    $Events = Get-BitwardenAllPages `
-        -Url "$Script:ApiBaseUrl/public/events" `
-        -QueryParams @{ start = $startStr; end = $endStr }
-
-    return $Events
-}
 
 function Get-BitwardenMembers {
     Write-Host "Fetching Bitwarden members."
@@ -226,9 +227,7 @@ function Get-BitwardenGroups {
 function Build-MemberLookup {
     <#
     .SYNOPSIS
-    Builds lookup hashtables from raw member objects.
-    Returns @{ ByMemberId = ...; ByUserId = ... } so events can be enriched
-    both by memberId (affected member) and actingUserId (Bitwarden userId).
+    Builds a lookup hashtable keyed by memberId from raw group objects.
     #>
     param([object[]]$RawMembers)
 
@@ -278,29 +277,41 @@ function ConvertTo-EnrichedEventRecords {
     #>
     param(
         [object[]]  $RawEvents,
-        [string]    $FallbackTimestamp,
-        [hashtable] $MemberLookup,   # output of Build-MemberLookup
-        [hashtable] $GroupLookup     # output of Build-GroupLookup
+        [string]    $FallbackTimestamp
     )
+
+    try {
+        $memberLookup = Build-MemberLookup -RawMembers Get-BitwardenMembers
+    }
+    catch {
+        Write-Warning "Failed to fetch Bitwarden members - events will be sent without member enrichment: $_"
+    }
+
+    try {
+        $groupLookup = Build-GroupLookup -RawGroups Get-BitwardenGroups
+    }
+    catch {
+        Write-Warning "Failed to fetch Bitwarden groups - events will be sent without group enrichment: $_"
+    }
 
     return $RawEvents | ForEach-Object {
         $ev = $_
 
         # Resolve the affected member (memberId is the org-member ID)
-        $member = if ($ev.memberId -and $MemberLookup.ByMemberId.ContainsKey($ev.memberId)) {
-            $MemberLookup.ByMemberId[$ev.memberId]
+        $member = if ($ev.memberId -and $memberLookup.ByMemberId.ContainsKey($ev.memberId)) {
+            $memberLookup.ByMemberId[$ev.memberId]
         }
         else { $null }
 
         # Resolve the acting user (actingUserId is a Bitwarden userId, not memberId)
-        $actor = if ($ev.actingUserId -and $MemberLookup.ByUserId.ContainsKey($ev.actingUserId)) {
-            $MemberLookup.ByUserId[$ev.actingUserId]
+        $actor = if ($ev.actingUserId -and $memberLookup.ByUserId.ContainsKey($ev.actingUserId)) {
+            $memberLookup.ByUserId[$ev.actingUserId]
         }
         else { $null }
 
         # Resolve the group
-        $group = if ($ev.groupId -and $GroupLookup.ContainsKey($ev.groupId)) {
-            $GroupLookup[$ev.groupId]
+        $group = if ($ev.groupId -and $groupLookup.ContainsKey($ev.groupId)) {
+            $groupLookup[$ev.groupId]
         }
         else { $null }
 
