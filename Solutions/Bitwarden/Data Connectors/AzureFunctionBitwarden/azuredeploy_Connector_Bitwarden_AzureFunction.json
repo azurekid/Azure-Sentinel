@@ -30,24 +30,16 @@
       }
     },
     "BitwardenClientSecret": {
-      "defaultValue": "",
       "type": "SecureString",
       "metadata": {
-        "description": "Bitwarden API client_secret. Provide this OR an existing Key Vault (see keyVaultName). When provided, a new Key Vault is created to store the secret."
+        "description": "Bitwarden API client_secret. Found in your Bitwarden organisation admin console under Settings → API Key."
       }
     },
-    "keyVaultName": {
+    "VNetSubnetResourceId": {
       "defaultValue": "",
       "type": "String",
       "metadata": {
-        "description": "Name of an existing Key Vault (same resource group) that already holds the Bitwarden client secret. Provide this OR BitwardenClientSecret, not both."
-      }
-    },
-    "keyVaultSecretName": {
-      "defaultValue": "",
-      "type": "String",
-      "metadata": {
-        "description": "Name of the secret in the Key Vault above. Only relevant when keyVaultName is provided. Defaults to 'bitwarden-client-secret'."
+        "description": "Resource ID of the delegated subnet for VNet integration (e.g. /subscriptions/.../subnets/func-subnet). Required when the Function App must reach on-premises resources via hub-spoke networking. Leave empty to skip VNet integration."
       }
     },
     "EventLookbackMinutes": {
@@ -69,16 +61,12 @@
     "FunctionName": "[concat(toLower(parameters('FunctionName')), uniqueString(resourceGroup().id))]",
     "StorageAccountName": "[take(concat(toLower(parameters('FunctionName')), uniqueString(resourceGroup().id)), 24)]",
     "identityName": "[format('uami-{0}', variables('FunctionName'))]",
-    "generatedKeyVaultName": "[take(concat('kv-', toLower(parameters('FunctionName')), uniqueString(resourceGroup().id)), 24)]",
-    "effectiveKeyVaultName": "[if(empty(parameters('keyVaultName')), variables('generatedKeyVaultName'), parameters('keyVaultName'))]",
-    "hasKeyVault": "[not(empty(parameters('keyVaultName')))]",
-    "hasClientSecret": "[not(empty(parameters('BitwardenClientSecret')))]",
-    "effectiveSecretName": "[if(empty(parameters('keyVaultSecretName')), 'bitwarden-client-secret', parameters('keyVaultSecretName'))]",
     "dceName": "[concat('bitwarden-dce-', uniqueString(resourceGroup().id))]",
     "dcrEventsName": "[concat('bitwarden-dcr-events-', uniqueString(resourceGroup().id))]",
     "logWsResId": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('WorkspaceName'))]",
     "storageSuffix": "[environment().suffixes.storage]",
-    "monitoringMetricsPublisherRoleId": "3913510d-42f4-4e42-8a64-420c390055eb"
+    "monitoringMetricsPublisherRoleId": "3913510d-42f4-4e42-8a64-420c390055eb",
+    "useVNet": "[not(empty(parameters('VNetSubnetResourceId')))]"
   },
   "resources": [
     {
@@ -86,75 +74,6 @@
       "apiVersion": "2023-01-31",
       "name": "[variables('identityName')]",
       "location": "[resourceGroup().location]"
-    },
-    {
-      "type": "Microsoft.KeyVault/vaults",
-      "apiVersion": "2023-07-01",
-      "name": "[variables('generatedKeyVaultName')]",
-      "location": "[resourceGroup().location]",
-      "condition": "[not(variables('hasKeyVault'))]",
-      "dependsOn": [
-        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName'))]"
-      ],
-      "properties": {
-        "sku": {
-          "family": "A",
-          "name": "standard"
-        },
-        "tenantId": "[subscription().tenantId]",
-        "accessPolicies": [
-          {
-            "objectId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName')), '2023-01-31').principalId]",
-            "permissions": {
-              "secrets": [
-                "get",
-                "list"
-              ]
-            },
-            "tenantId": "[subscription().tenantId]"
-          }
-        ],
-        "publicNetworkAccess": "Enabled",
-        "networkAcls": {
-          "defaultAction": "Allow",
-          "bypass": "AzureServices"
-        }
-      }
-    },
-    {
-      "type": "Microsoft.KeyVault/vaults/accessPolicies",
-      "apiVersion": "2023-07-01",
-      "name": "[format('{0}/add', parameters('keyVaultName'))]",
-      "condition": "[variables('hasKeyVault')]",
-      "dependsOn": [
-        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName'))]"
-      ],
-      "properties": {
-        "accessPolicies": [
-          {
-            "objectId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName')), '2023-01-31').principalId]",
-            "permissions": {
-              "secrets": [
-                "get",
-                "list"
-              ]
-            },
-            "tenantId": "[subscription().tenantId]"
-          }
-        ]
-      }
-    },
-    {
-      "type": "Microsoft.KeyVault/vaults/secrets",
-      "apiVersion": "2023-07-01",
-      "name": "[format('{0}/bitwarden-client-secret', variables('effectiveKeyVaultName'))]",
-      "condition": "[variables('hasClientSecret')]",
-      "dependsOn": [
-        "[if(variables('hasKeyVault'), resourceId('Microsoft.KeyVault/vaults/accessPolicies', parameters('keyVaultName'), 'add'), resourceId('Microsoft.KeyVault/vaults', variables('generatedKeyVaultName')))]"
-      ],
-      "properties": {
-        "value": "[parameters('BitwardenClientSecret')]"
-      }
     },
     {
       "type": "Microsoft.Insights/dataCollectionEndpoints",
@@ -175,17 +94,26 @@
         "schema": {
           "name": "BitwardenEventLogs_CL",
           "columns": [
-            { "name": "TimeGenerated", "type": "datetime" },
-            { "name": "eventType", "type": "int" },
-            { "name": "itemId", "type": "string" },
-            { "name": "collectionId", "type": "string" },
-            { "name": "groupId", "type": "string" },
-            { "name": "policyId", "type": "string" },
-            { "name": "memberId", "type": "string" },
-            { "name": "actingUserId", "type": "string" },
-            { "name": "installationId", "type": "string" },
-            { "name": "device", "type": "int" },
-            { "name": "ipAddress", "type": "string" }
+            { "name": "TimeGenerated",    "type": "datetime" },
+            { "name": "eventType",        "type": "int" },
+            { "name": "itemId",           "type": "string" },
+            { "name": "collectionId",     "type": "string" },
+            { "name": "policyId",         "type": "string" },
+            { "name": "installationId",   "type": "string" },
+            { "name": "device",           "type": "int" },
+            { "name": "ipAddress",        "type": "string" },
+            { "name": "memberId",         "type": "string" },
+            { "name": "memberUserId",     "type": "string" },
+            { "name": "memberEmail",      "type": "string" },
+            { "name": "memberName",       "type": "string" },
+            { "name": "actingUserId",     "type": "string" },
+            { "name": "actingUserEmail",  "type": "string" },
+            { "name": "actingUserName",   "type": "string" },
+            { "name": "groupId",          "type": "string" },
+            { "name": "groupName",        "type": "string" },
+            { "name": "serviceAccountId", "type": "string" },
+            { "name": "projectId",        "type": "string" },
+            { "name": "secretId",         "type": "string" }
           ]
         }
       }
@@ -194,48 +122,36 @@
       "type": "Microsoft.Insights/dataCollectionRules",
       "apiVersion": "2021-09-01-preview",
       "name": "[variables('dcrEventsName')]",
-      "location": "[resourceGroup().location]",
-      "dependsOn": [
-        "[resourceId('Microsoft.Insights/dataCollectionEndpoints', variables('dceName'))]",
-        "[resourceId('Microsoft.OperationalInsights/workspaces/tables', parameters('WorkspaceName'), 'BitwardenEventLogs_CL')]"
-      ],
+      "location": "[parameters('location')]",
       "properties": {
         "dataCollectionEndpointId": "[resourceId('Microsoft.Insights/dataCollectionEndpoints', variables('dceName'))]",
-        "streamDeclarations": {
-          "Custom-BitwardenEventLogs_CL": {
-            "columns": [
-              { "name": "TimeGenerated", "type": "datetime" },
-              { "name": "eventType", "type": "int" },
-              { "name": "itemId", "type": "string" },
-              { "name": "collectionId", "type": "string" },
-              { "name": "groupId", "type": "string" },
-              { "name": "policyId", "type": "string" },
-              { "name": "memberId", "type": "string" },
-              { "name": "actingUserId", "type": "string" },
-              { "name": "installationId", "type": "string" },
-              { "name": "device", "type": "int" },
-              { "name": "ipAddress", "type": "string" }
-            ]
-          }
-        },
         "destinations": {
           "logAnalytics": [
             {
-              "workspaceResourceId": "[variables('logWsResId')]",
-              "name": "bitwardenWorkspace"
+              "workspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName'))]",
+              "name": "[parameters('workspaceName')]"
             }
           ]
         },
         "dataFlows": [
           {
-            "streams": [ "Custom-BitwardenEventLogs_CL" ],
-            "destinations": [ "bitwardenWorkspace" ],
-            "transformKql": "source",
-            "outputStream": "Custom-BitwardenEventLogs_CL"
+            "streams": [
+              "[variables('customTable')]"
+            ],
+            "destinations": [
+              "[parameters('workspaceName')]"
+            ],
+            "outputStream": "[variables('customTable')]",
+            "transformKql": "source | extend TimeGenerated = now()"
           }
         ]
-      }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Insights/dataCollectionEndpoints', variables('dceName'))]",
+        "[resourceId('Microsoft.OperationalInsights/workspaces/tables', parameters('WorkspaceName'), 'BitwardenEventLogs_CL')]"
+      ]
     },
+
     {
       "type": "Microsoft.Authorization/roleAssignments",
       "apiVersion": "2022-04-01",
@@ -321,11 +237,12 @@
       "location": "[resourceGroup().location]",
       "kind": "functionapp",
       "sku": {
-        "name": "Y1",
-        "tier": "Dynamic"
+        "name": "[if(variables('useVNet'), 'EP1', 'Y1')]",
+        "tier": "[if(variables('useVNet'), 'ElasticPremium', 'Dynamic')]"
       },
       "properties": {
-        "reserved": false
+        "reserved": false,
+        "maximumElasticWorkerCount": "[if(variables('useVNet'), 20, json('null'))]"
       }
     },
     {
@@ -340,8 +257,7 @@
         "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]",
         "[resourceId('Microsoft.Insights/components', variables('FunctionName'))]",
         "[resourceId('Microsoft.Insights/dataCollectionRules', variables('dcrEventsName'))]",
-        "[resourceId('Microsoft.Insights/dataCollectionEndpoints', variables('dceName'))]",
-        "[if(variables('hasKeyVault'), resourceId('Microsoft.KeyVault/vaults/accessPolicies', parameters('keyVaultName'), 'add'), resourceId('Microsoft.KeyVault/vaults', variables('generatedKeyVaultName')))]"
+        "[resourceId('Microsoft.Insights/dataCollectionEndpoints', variables('dceName'))]"
       ],
       "identity": {
         "type": "UserAssigned",
@@ -353,9 +269,10 @@
         "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('FunctionName'))]",
         "httpsOnly": true,
         "reserved": false,
-        "keyVaultReferenceIdentity": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('identityName'))]",
+        "virtualNetworkSubnetId": "[if(variables('useVNet'), parameters('VNetSubnetResourceId'), json('null'))]",
+        "vnetRouteAllEnabled": "[variables('useVNet')]",
         "siteConfig": {
-            "linuxFxVersion": "PowerShell|7.4",
+          "linuxFxVersion": "PowerShell|7.4",
           "minTlsVersion": "1.2",
           "ftpsState": "Disabled",
           "appSettings": [
@@ -412,12 +329,8 @@
               "value": "[parameters('BitwardenClientId')]"
             },
             {
-              "name": "KEY_VAULT_URI",
-              "value": "[reference(resourceId('Microsoft.KeyVault/vaults', variables('effectiveKeyVaultName')), '2023-07-01').vaultUri]"
-            },
-            {
-              "name": "KEY_VAULT_SECRET_NAME",
-              "value": "[variables('effectiveSecretName')]"
+              "name": "BITWARDEN_CLIENT_SECRET",
+              "value": "[parameters('BitwardenClientSecret')]"
             },
             {
               "name": "BITWARDEN_URL",
@@ -440,10 +353,6 @@
     "FunctionAppName": {
       "type": "string",
       "value": "[variables('FunctionName')]"
-    },
-    "KeyVaultName": {
-      "type": "string",
-      "value": "[variables('effectiveKeyVaultName')]"
     },
     "DCEEndpoint": {
       "type": "string",

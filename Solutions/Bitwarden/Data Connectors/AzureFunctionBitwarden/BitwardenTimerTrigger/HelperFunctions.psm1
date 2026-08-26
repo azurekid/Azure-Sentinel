@@ -280,15 +280,18 @@ function ConvertTo-EnrichedEventRecords {
         [string]    $FallbackTimestamp
     )
 
+    $memberLookup = @{ ByMemberId = @{}; ByUserId = @{} }
+    $groupLookup  = @{}
+
     try {
-        $memberLookup = Build-MemberLookup -RawMembers Get-BitwardenMembers
+        $memberLookup = Build-MemberLookup -RawMembers (Get-BitwardenMembers)
     }
     catch {
         Write-Warning "Failed to fetch Bitwarden members - events will be sent without member enrichment: $_"
     }
 
     try {
-        $groupLookup = Build-GroupLookup -RawGroups Get-BitwardenGroups
+        $groupLookup = Build-GroupLookup -RawGroups (Get-BitwardenGroups)
     }
     catch {
         Write-Warning "Failed to fetch Bitwarden groups - events will be sent without group enrichment: $_"
