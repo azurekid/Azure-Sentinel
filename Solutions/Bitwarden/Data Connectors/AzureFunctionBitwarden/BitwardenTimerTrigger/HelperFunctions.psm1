@@ -71,36 +71,6 @@ function Send-ToDcr {
     Write-Host "Successfully uploaded $($Records.Count) records to '$StreamName'."
 }
 
-function Get-BitwardenClientSecret {
-    param(
-        [string]$KeyVaultUri,
-        [string]$SecretName,
-        [string]$EnvFallback
-    )
-
-    if (-not [string]::IsNullOrWhiteSpace($KeyVaultUri)) {
-        try {
-            Write-Host "Retrieving Bitwarden client_secret from Key Vault: $KeyVaultUri / $SecretName"
-            $secret = Get-AzKeyVaultSecret -VaultName ([System.Uri]::new($KeyVaultUri).Host.Split('.')[0]) `
-                                           -Name $SecretName `
-                                           -AsPlainText -ErrorAction Stop
-            if (-not [string]::IsNullOrWhiteSpace($secret)) {
-                Write-Host "Bitwarden client_secret retrieved from Key Vault."
-                return $secret
-            }
-        } catch {
-            Write-Warning "Failed to retrieve secret from Key Vault: $_. Falling back to environment variable."
-        }
-    }
-
-    if ([string]::IsNullOrWhiteSpace($EnvFallback)) {
-        throw "Bitwarden client_secret not found. Set BITWARDEN_CLIENT_SECRET or configure KEY_VAULT_URI / KEY_VAULT_SECRET_NAME."
-    }
-
-    Write-Host "Using Bitwarden client_secret from environment variable."
-    return $EnvFallback
-}
-
 function Get-BitwardenToken {
     param(
         [string]$IdentityBaseUrl,
@@ -110,9 +80,9 @@ function Get-BitwardenToken {
 
     $now = [System.DateTime]::UtcNow
 
-    if ($script:BwAccessToken -and $now -lt $script:BwTokenExpires) {
-        return $script:BwAccessToken
-    }
+    # if ($script:BwAccessToken -and $now -lt $script:BwTokenExpires) {
+    #     return $script:BwAccessToken
+    # }
 
     $tokenUrl = "$IdentityBaseUrl/connect/token"
     $body = "grant_type=client_credentials&scope=api.organization&client_id=$([System.Uri]::EscapeDataString($ClientId))&client_secret=$([System.Uri]::EscapeDataString($ClientSecret))"
@@ -131,38 +101,42 @@ function Get-BitwardenToken {
     }
 
     $expiresIn = if ($response.expires_in) { [int]$response.expires_in } else { 3600 }
-    $script:BwAccessToken  = $response.access_token
+    $script:BwAccessToken  = $response.access_token | ConvertTo-SecureString -AsPlainText -Force
     $script:BwTokenExpires = $now.AddSeconds($expiresIn - $TokenExpiryBufferSec)
 
-    Write-Host "Bitwarden access token obtained. Valid until ~$($script:BwTokenExpires.ToString('HH:mm:ss')) UTC."
-    return $script:BwAccessToken
+    Write-Host "Bitwarden access token obtained. Valid until ~ $($script:BwTokenExpires.ToString('HH:mm:ss')) UTC."
+    return $script:BwAccessToken 
 }
 
 function Invoke-BitwardenGet {
     param(
         [string]   $Url,
-        [hashtable]$QueryParams = @{},
-        [string]   $IdentityBaseUrl,
-        [string]   $ClientId,
-        [string]   $ClientSecret
+        [hashtable]$QueryParams = @{}
     )
 
+    Write-Host "Invoking Bitwarden GET $Url with query params: $($QueryParams | ConvertTo-Json -Compress)"
     $retryableStatusCodes = @(429, 500, 502, 503, 504)
     $reauthenticated = $false
+    $MaxRetries            = 3
 
     for ($attempt = 0; $attempt -le $MaxRetries; $attempt++) {
 
-        $token   = Get-BitwardenToken -IdentityBaseUrl $IdentityBaseUrl -ClientId $ClientId -ClientSecret $ClientSecret
-        $headers = @{ 'Authorization' = "Bearer $token"; 'Accept' = 'application/json' }
+        $headers = @{
+            'Authorization' = "Bearer $($BwAccessToken | ConvertFrom-SecureString -AsPlainText)";
+            'Accept' = 'application/json'
+        }
 
         # Build query string
         $uri = $Url
         if ($QueryParams.Count -gt 0) {
             $qs = ($QueryParams.GetEnumerator() | ForEach-Object {
-                "$([System.Uri]::EscapeDataString($_.Key))=$([System.Uri]::EscapeDataString($_.Value))"
+                '{0}' -f "$([System.Uri]::EscapeDataString($($_.Key)))=$([System.Uri]::EscapeDataString($_.Value))"
             }) -join '&'
-            $uri = "$Url`?$qs"
+            $uri = '{0}?{1}' -f $Url, $qs
         }
+
+        Write-Host "Attempt $($attempt + 1)/$MaxRetries : GET $uri"
+
 
         try {
             $response = Invoke-WebRequest -Uri $uri -Headers $headers -Method GET -ErrorAction Stop
@@ -203,67 +177,96 @@ function Invoke-BitwardenGet {
 function Get-BitwardenAllPages {
     param(
         [string]   $Url,
-        [hashtable]$QueryParams = @{},
-        [string]   $IdentityBaseUrl,
-        [string]   $ClientId,
-        [string]   $ClientSecret
+        [hashtable]$QueryParams = @{}
     )
 
     $allItems = [System.Collections.Generic.List[object]]::new()
-    $params   = [hashtable]$QueryParams.Clone()
+    $params   = [hashtable]$QueryParams
     $page     = 0
+    Write-Host "Initial query params: $($params | ConvertTo-Json -Compress)"
 
     do {
         $page++
-        $data  = Invoke-BitwardenGet -Url $Url -QueryParams $params `
-                                     -IdentityBaseUrl $IdentityBaseUrl `
-                                     -ClientId $ClientId -ClientSecret $ClientSecret
+        $data  = Invoke-BitwardenGet -Url $Url -QueryParams $params
         $items = $data.data
+        write-host $data
+        pause
         if ($items) { $allItems.AddRange([object[]]$items) }
 
         Write-Host "Page $page : fetched $($items.Count) items (total: $($allItems.Count))"
 
-        $continuationToken = $data.continuationToken
-        if ($continuationToken) {
-            $params['continuationToken'] = $continuationToken
+        $nextToken = $data.continuationToken
+        $data = $null
+
+        if ($nextToken) {
+            Write-Host "Next continuation token found: $nextToken"
+            $params['continuationToken'] = $nextToken
+        } else {
+            Write-Host "No more continuation tokens returned. Clearing parameter."
+            # Remove the key entirely so the 'while' condition becomes false
+            $params.Remove('continuationToken')
         }
 
-    } while ($continuationToken)
+        Write-Host "Using query params for next page: $($params | ConvertTo-Json -Compress)"
+    } while ($params.continuationToken) # This will now cleanly evaluate to false when removed
 
     return $allItems.ToArray()
 }
+ 
 
 function Get-BitwardenEvents {
-    param([datetime]$Start, [datetime]$End)
+    param(
+        [datetime]$Start,
+        [datetime]$End
+    )
 
     $startStr = $Start.ToString('yyyy-MM-ddTHH:mm:ss.000000Z')
     $endStr   = $End.ToString('yyyy-MM-ddTHH:mm:ss.000000Z')
     Write-Host "Fetching Bitwarden events from $startStr to $endStr"
 
-    return Get-BitwardenAllPages `
-        -Url "$ApiBaseUrl/public/events" `
-        -QueryParams @{ start = $startStr; end = $endStr } `
-        -IdentityBaseUrl $IdentityBaseUrl `
-        -ClientId $BitwardenClientId `
-        -ClientSecret $ResolvedClientSecret
+    $Events = Get-BitwardenAllPages `
+        -Url "$Script:ApiBaseUrl/public/events" `
+        -QueryParams @{ start = $startStr; end = $endStr }
+
+    return $Events 
+    | ForEach-Object {
+        @{
+            TimeGenerated  = $_.date
+            eventType      = $_.type
+            itemId         = $_.itemId
+            collectionId   = $_.collectionId
+            groupId        = $_.groupId
+            policyId       = $_.policyId
+            memberId       = $_.memberId
+            actingUserId   = $_.actingUserId
+            installationId = $_.installationId
+            device         = $_.device
+            ipAddress      = $_.ipAddress
+
+        }
+    }
 }
 
 function Get-BitwardenMembers {
     Write-Host "Fetching Bitwarden members."
-    return Get-BitwardenAllPages `
-        -Url "$ApiBaseUrl/public/members" `
-        -IdentityBaseUrl $IdentityBaseUrl `
-        -ClientId $BitwardenClientId `
-        -ClientSecret $ResolvedClientSecret
+    $Members = Get-BitwardenAllPages `
+        -Url "$Script:ApiBaseUrl/public/members"
+
+    return $Members.data | ForEach-Object {
+        @{
+            TimeGenerated = $Timestamp
+            memberId      = $_.id
+            userId        = $_.userId
+            email         = $_.email
+            name          = $_.name
+        }
+    }
 }
 
 function Get-BitwardenGroups {
     Write-Host "Fetching Bitwarden groups."
     return Get-BitwardenAllPages `
-        -Url "$ApiBaseUrl/public/groups" `
-        -IdentityBaseUrl $IdentityBaseUrl `
-        -ClientId $BitwardenClientId `
-        -ClientSecret $ResolvedClientSecret
+        -Url "$Script:ApiBaseUrl/public/groups"
 }
 
 function ConvertTo-EventRecords {
@@ -287,7 +290,7 @@ function ConvertTo-EventRecords {
 
 function ConvertTo-MemberRecords {
     param([object[]]$RawMembers, [string]$Timestamp)
-    return $RawMembers | ForEach-Object {
+    return $RawMembers.data | ForEach-Object {
         @{
             TimeGenerated = $Timestamp
             memberId      = $_.id
