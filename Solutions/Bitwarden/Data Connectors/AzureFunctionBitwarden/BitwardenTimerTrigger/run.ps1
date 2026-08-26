@@ -17,8 +17,6 @@ $EventLookbackMinutes  = if ($env:BITWARDEN_EVENT_LOOKBACK_MINUTES) { [int]$env:
 
 $DceEndpoint           = $env:AZURE_DCE_ENDPOINT
 $DcrEventsImmutableId  = $env:AZURE_DCR_EVENTS_IMMUTABLEID
-$DcrMembersImmutableId = $env:AZURE_DCR_MEMBERS_IMMUTABLEID
-$DcrGroupsImmutableId  = $env:AZURE_DCR_GROUPS_IMMUTABLEID
 
 $MaxRetries            = 3
 $InitialBackoffSeconds = 2
@@ -31,10 +29,8 @@ function Assert-Required {
     }
 }
 
-Assert-Required $DceEndpoint           'AZURE_DCE_ENDPOINT'
-Assert-Required $DcrEventsImmutableId  'AZURE_DCR_EVENTS_IMMUTABLEID'
-Assert-Required $DcrMembersImmutableId 'AZURE_DCR_MEMBERS_IMMUTABLEID'
-Assert-Required $DcrGroupsImmutableId  'AZURE_DCR_GROUPS_IMMUTABLEID'
+Assert-Required $DceEndpoint          'AZURE_DCE_ENDPOINT'
+Assert-Required $DcrEventsImmutableId 'AZURE_DCR_EVENTS_IMMUTABLEID'
 
 $BitwardenIdentityUrl  = $env:BITWARDEN_IDENTITY_URL
 $BitwardenApiUrl       = $env:BITWARDEN_API_URL
@@ -49,56 +45,54 @@ if ($bitwardenUrl -match 'https://bitwarden\.(com|eu)') {
     $BitwardenApiUrl      = "$env:BitwardenUrl/api"
 }
 
-try {
-    $rawEvents   = Get-BitwardenEvents -Start $currentUTCtime.AddMinutes(-$EventLookbackMinutes) -End $currentUTCtime
-    $totalEvents = $rawEvents.Count
-    Write-Host "Fetched $totalEvents Bitwarden events."
+$ts           = $currentUTCtime.ToString('yyyy-MM-ddTHH:mm:ss.000Z')
+$totalEvents  = 0
+$totalMembers = 0
+$totalGroups  = 0
 
-    if ($totalEvents -gt 0) {
-        $eventRecords = ConvertTo-EventRecords -RawEvents $rawEvents -FallbackTimestamp $ts
-
-        Send-ToDcr -DceEndpoint $DceEndpoint `
-                   -DcrImmutableId $DcrEventsImmutableId `
-                   -StreamName 'Custom-BitwardenEventLogs_CL' `
-                   -Records $eventRecords
-    }
-} catch {
-    Write-Error "Failed to process Bitwarden events: $_"
-}
-
+# -- Members & Groups (fetched first to build enrichment lookup tables) ------
 try {
     $rawMembers   = Get-BitwardenMembers
     $totalMembers = $rawMembers.Count
     Write-Host "Fetched $totalMembers Bitwarden members."
-
-    if ($totalMembers -gt 0) {
-        $memberRecords = ConvertTo-MemberRecords -RawMembers $rawMembers -Timestamp $ts
-
-        Send-ToDcr -DceEndpoint $DceEndpoint `
-                   -DcrImmutableId $DcrMembersImmutableId `
-                   -StreamName 'Custom-BitwardenMembers_CL' `
-                   -Records $memberRecords
-    }
 } catch {
-    Write-Error "Failed to process Bitwarden members: $_"
+    Write-Warning "Failed to fetch Bitwarden members - events will be sent without member enrichment: $_"
+    $rawMembers = @()
 }
 
 try {
     $rawGroups   = Get-BitwardenGroups
     $totalGroups = $rawGroups.Count
     Write-Host "Fetched $totalGroups Bitwarden groups."
+} catch {
+    Write-Warning "Failed to fetch Bitwarden groups - events will be sent without group enrichment: $_"
+    $rawGroups = @()
+}
 
-    if ($totalGroups -gt 0) {
-        $groupRecords = ConvertTo-GroupRecords -RawGroups $rawGroups -Timestamp $ts
+$memberLookup = Build-MemberLookup -RawMembers $rawMembers
+$groupLookup  = Build-GroupLookup  -RawGroups  $rawGroups
 
-        Send-ToDcr -DceEndpoint $DceEndpoint `
-                x   -DcrImmutableId $DcrGroupsImmutableId `
-                   -StreamName 'Custom-BitwardenGroups_CL' `
-                   -Records $groupRecords
+# -- Events (enriched with member and group data before ingestion) ------------
+try {
+    $rawEvents   = Get-BitwardenEvents -Start $currentUTCtime.AddMinutes(-$EventLookbackMinutes) -End $currentUTCtime
+    $totalEvents = $rawEvents.Count
+    Write-Host "Fetched $totalEvents Bitwarden events."
+
+    if ($totalEvents -gt 0) {
+        $eventRecords = ConvertTo-EnrichedEventRecords `
+            -RawEvents         $rawEvents `
+            -FallbackTimestamp $ts `
+            -MemberLookup      $memberLookup `
+            -GroupLookup       $groupLookup
+
+        Send-ToDcr -DceEndpoint    $DceEndpoint `
+                   -DcrImmutableId $DcrEventsImmutableId `
+                   -StreamName     'Custom-BitwardenEventLogs_CL' `
+                   -Records        $eventRecords
     }
 } catch {
-    Write-Error "Failed to process Bitwarden groups: $_"
+    Write-Error "Failed to process Bitwarden events: $_"
 }
 
 $duration = ([System.DateTime]::UtcNow - $currentUTCtime).TotalSeconds
-Write-Host "Bitwarden connector finished in $([Math]::Round($duration, 1))s. Events: $totalEvents, Members: $totalMembers, Groups: $totalGroups."
+Write-Host "Bitwarden connector finished in $([Math]::Round($duration, 1))s. Events: $totalEvents, Members (lookup): $totalMembers, Groups (lookup): $totalGroups."

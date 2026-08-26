@@ -269,45 +269,108 @@ function Get-BitwardenGroups {
         -Url "$Script:ApiBaseUrl/public/groups"
 }
 
-function ConvertTo-EventRecords {
-    param([object[]]$RawEvents, [string]$FallbackTimestamp)
+function Build-MemberLookup {
+    <#
+    .SYNOPSIS
+    Builds lookup hashtables from raw member objects.
+    Returns @{ ByMemberId = ...; ByUserId = ... } so events can be enriched
+    both by memberId (affected member) and actingUserId (Bitwarden userId).
+    #>
+    param([object[]]$RawMembers)
+
+    $byMemberId = @{}
+    $byUserId   = @{}
+
+    foreach ($m in $RawMembers) {
+        $record = @{
+            memberId = $m.id
+            userId   = $m.userId
+            email    = $m.email
+            name     = $m.name
+        }
+        if ($m.id)     { $byMemberId[$m.id]   = $record }
+        if ($m.userId) { $byUserId[$m.userId] = $record }
+    }
+
+    return @{ ByMemberId = $byMemberId; ByUserId = $byUserId }
+}
+
+function Build-GroupLookup {
+    <#
+    .SYNOPSIS
+    Builds a lookup hashtable keyed by groupId from raw group objects.
+    #>
+    param([object[]]$RawGroups)
+
+    $byGroupId = @{}
+    foreach ($g in $RawGroups) {
+        if ($g.id) {
+            $byGroupId[$g.id] = @{ groupId = $g.id; groupName = $g.name }
+        }
+    }
+    return $byGroupId
+}
+
+function ConvertTo-EnrichedEventRecords {
+    <#
+    .SYNOPSIS
+    Converts raw Bitwarden events into enriched DCR records by joining member
+    and group lookup data. Each output record is a single flat hashtable with:
+      - Core event fields
+      - Affected member fields  (memberId     -> memberEmail, memberName, memberUserId)
+      - Acting user fields      (actingUserId -> actingUserEmail, actingUserName)
+      - Group name              (groupId      -> groupName)
+    Unresolved IDs produce null values rather than being omitted.
+    #>
+    param(
+        [object[]]  $RawEvents,
+        [string]    $FallbackTimestamp,
+        [hashtable] $MemberLookup,   # output of Build-MemberLookup
+        [hashtable] $GroupLookup     # output of Build-GroupLookup
+    )
+
     return $RawEvents | ForEach-Object {
-        @{
-            TimeGenerated  = if ($_.date) { $_.date } else { $FallbackTimestamp }
-            eventType      = $_.type
-            itemId         = $_.itemId
-            collectionId   = $_.collectionId
-            groupId        = $_.groupId
-            policyId       = $_.policyId
-            memberId       = $_.memberId
-            actingUserId   = $_.actingUserId
-            installationId = $_.installationId
-            device         = $_.device
-            ipAddress      = $_.ipAddress
-        }
-    }
-}
+        $ev = $_
 
-function ConvertTo-MemberRecords {
-    param([object[]]$RawMembers, [string]$Timestamp)
-    return $RawMembers.data | ForEach-Object {
-        @{
-            TimeGenerated = $Timestamp
-            memberId      = $_.id
-            userId        = $_.userId
-            email         = $_.email
-            name          = $_.name
-        }
-    }
-}
+        # Resolve the affected member (memberId is the org-member ID)
+        $member = if ($ev.memberId -and $MemberLookup.ByMemberId.ContainsKey($ev.memberId)) {
+            $MemberLookup.ByMemberId[$ev.memberId]
+        } else { $null }
 
-function ConvertTo-GroupRecords {
-    param([object[]]$RawGroups, [string]$Timestamp)
-    return $RawGroups | ForEach-Object {
+        # Resolve the acting user (actingUserId is a Bitwarden userId, not memberId)
+        $actor = if ($ev.actingUserId -and $MemberLookup.ByUserId.ContainsKey($ev.actingUserId)) {
+            $MemberLookup.ByUserId[$ev.actingUserId]
+        } else { $null }
+
+        # Resolve the group
+        $group = if ($ev.groupId -and $GroupLookup.ContainsKey($ev.groupId)) {
+            $GroupLookup[$ev.groupId]
+        } else { $null }
+
         @{
-            TimeGenerated = $Timestamp
-            groupId       = $_.id
-            name          = $_.name
+            TimeGenerated       = if ($ev.date) { $ev.date } else { $FallbackTimestamp }
+            eventType           = $ev.type
+            itemId              = $ev.itemId
+            collectionId        = $ev.collectionId
+            policyId            = $ev.policyId
+            installationId      = $ev.installationId
+            device              = $ev.device
+            ipAddress           = $ev.ipAddress
+
+            # Affected member
+            memberId            = $ev.memberId
+            memberUserId        = if ($member) { $member.userId } else { $null }
+            memberEmail         = if ($member) { $member.email }  else { $null }
+            memberName          = if ($member) { $member.name }   else { $null }
+
+            # Acting user
+            actingUserId        = $ev.actingUserId
+            actingUserEmail     = if ($actor)  { $actor.email }     else { $null }
+            actingUserName      = if ($actor)  { $actor.name }      else { $null }
+
+            # Group
+            groupId             = $ev.groupId
+            groupName           = if ($group)  { $group.groupName } else { $null }
         }
     }
 }
