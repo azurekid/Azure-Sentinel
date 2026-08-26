@@ -105,7 +105,7 @@ function Get-BitwardenToken {
     $script:BwTokenExpires = $now.AddSeconds($expiresIn - $TokenExpiryBufferSec)
 
     Write-Host "Bitwarden access token obtained. Valid until ~ $($script:BwTokenExpires.ToString('HH:mm:ss')) UTC."
-    return $script:BwAccessToken 
+    return $script:BwAccessToken
 }
 
 function Invoke-BitwardenGet {
@@ -212,7 +212,7 @@ function Get-BitwardenAllPages {
 
     return $allItems.ToArray()
 }
- 
+
 
 function Get-BitwardenEvents {
     param(
@@ -228,7 +228,7 @@ function Get-BitwardenEvents {
         -Url "$Script:ApiBaseUrl/public/events" `
         -QueryParams @{ start = $startStr; end = $endStr }
 
-    return $Events 
+    return $Events
     | ForEach-Object {
         @{
             TimeGenerated  = $_.date

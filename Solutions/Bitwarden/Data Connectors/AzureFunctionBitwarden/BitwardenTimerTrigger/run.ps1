@@ -56,7 +56,7 @@ try {
 
     if ($totalEvents -gt 0) {
         $eventRecords = ConvertTo-EventRecords -RawEvents $rawEvents -FallbackTimestamp $ts
-        
+
         Send-ToDcr -DceEndpoint $DceEndpoint `
                    -DcrImmutableId $DcrEventsImmutableId `
                    -StreamName 'Custom-BitwardenEventLogs_CL' `
@@ -73,7 +73,7 @@ try {
 
     if ($totalMembers -gt 0) {
         $memberRecords = ConvertTo-MemberRecords -RawMembers $rawMembers -Timestamp $ts
-        
+
         Send-ToDcr -DceEndpoint $DceEndpoint `
                    -DcrImmutableId $DcrMembersImmutableId `
                    -StreamName 'Custom-BitwardenMembers_CL' `
@@ -90,9 +90,9 @@ try {
 
     if ($totalGroups -gt 0) {
         $groupRecords = ConvertTo-GroupRecords -RawGroups $rawGroups -Timestamp $ts
-        
+
         Send-ToDcr -DceEndpoint $DceEndpoint `
-                   -DcrImmutableId $DcrGroupsImmutableId `
+                x   -DcrImmutableId $DcrGroupsImmutableId `
                    -StreamName 'Custom-BitwardenGroups_CL' `
                    -Records $groupRecords
     }
