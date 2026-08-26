@@ -39,53 +39,22 @@ Function Send-Data {
 
 }
 
-function Send-ToDcr {
-    param(
-        [string]   $DceEndpoint,
-        [string]   $DcrImmutableId,
-        [string]   $StreamName,
-        [object[]] $Records
-    )
-
-    if (-not $Records -or $Records.Count -eq 0) {
-        Write-Host "No records for stream '$StreamName' – skipping."
-        return
-    }
-
-    Write-Host "Uploading $($Records.Count) records to stream '$StreamName' (DCR: $DcrImmutableId)."
-
-    # Chunk into 1 MB batches to stay within the API limit
-    # Az.Monitor.Ingestion handles this internally, but we serialise for logging
-    $body = $Records | ConvertTo-Json -Depth 5 -Compress
-
-    $token     = (Get-AzAccessToken -ResourceUrl 'https://monitor.azure.com/' -ErrorAction Stop).Token
-    $uploadUri = "$DceEndpoint/dataCollectionRules/$DcrImmutableId/streams/$StreamName`?api-version=2023-01-01"
-
-    $response = Invoke-RestMethod `
-        -Uri         $uploadUri `
-        -Method      POST `
-        -Headers     @{ 'Authorization' = "Bearer $token"; 'Content-Type' = 'application/json' } `
-        -Body        $body `
-        -ErrorAction Stop
-
-    Write-Host "Successfully uploaded $($Records.Count) records to '$StreamName'."
-}
-
 function Get-BitwardenToken {
     param(
-        [string]$IdentityBaseUrl,
-        [string]$ClientId,
-        [string]$ClientSecret
+        [string]$IdentityBaseUrl
     )
 
     $now = [System.DateTime]::UtcNow
 
-    # if ($script:BwAccessToken -and $now -lt $script:BwTokenExpires) {
-    #     return $script:BwAccessToken
-    # }
+    if ($script:BwAccessToken -and $now -lt $script:BwTokenExpires) {
+        return $script:BwAccessToken
+    }
+
+    $BitwardenClientId = $env:BITWARDEN_CLIENT_ID
+    $BitwardenClientSecret = $env:BITWARDEN_CLIENT_SECRET
 
     $tokenUrl = "$IdentityBaseUrl/connect/token"
-    $body = "grant_type=client_credentials&scope=api.organization&client_id=$([System.Uri]::EscapeDataString($ClientId))&client_secret=$([System.Uri]::EscapeDataString($ClientSecret))"
+    $body = "grant_type=client_credentials&scope=api.organization&client_id=$([System.Uri]::EscapeDataString($BitwardenClientId))&client_secret=$([System.Uri]::EscapeDataString($BitwardenClientSecret))"
 
     Write-Host "Requesting Bitwarden access token from $tokenUrl"
 
@@ -101,7 +70,7 @@ function Get-BitwardenToken {
     }
 
     $expiresIn = if ($response.expires_in) { [int]$response.expires_in } else { 3600 }
-    $script:BwAccessToken  = $response.access_token | ConvertTo-SecureString -AsPlainText -Force
+    $script:BwAccessToken = $response.access_token | ConvertTo-SecureString -AsPlainText -Force
     $script:BwTokenExpires = $now.AddSeconds($expiresIn - $TokenExpiryBufferSec)
 
     Write-Host "Bitwarden access token obtained. Valid until ~ $($script:BwTokenExpires.ToString('HH:mm:ss')) UTC."
@@ -117,21 +86,21 @@ function Invoke-BitwardenGet {
     Write-Host "Invoking Bitwarden GET $Url with query params: $($QueryParams | ConvertTo-Json -Compress)"
     $retryableStatusCodes = @(429, 500, 502, 503, 504)
     $reauthenticated = $false
-    $MaxRetries            = 3
+    $MaxRetries = 3
 
     for ($attempt = 0; $attempt -le $MaxRetries; $attempt++) {
 
         $headers = @{
-            'Authorization' = "Bearer $($BwAccessToken | ConvertFrom-SecureString -AsPlainText)";
-            'Accept' = 'application/json'
+            'Authorization' = "Bearer $($Script:BwAccessToken | ConvertFrom-SecureString -AsPlainText)";
+            'Accept'        = 'application/json'
         }
 
         # Build query string
         $uri = $Url
         if ($QueryParams.Count -gt 0) {
             $qs = ($QueryParams.GetEnumerator() | ForEach-Object {
-                '{0}' -f "$([System.Uri]::EscapeDataString($($_.Key)))=$([System.Uri]::EscapeDataString($_.Value))"
-            }) -join '&'
+                    '{0}' -f "$([System.Uri]::EscapeDataString($($_.Key)))=$([System.Uri]::EscapeDataString($_.Value))"
+                }) -join '&'
             $uri = '{0}?{1}' -f $Url, $qs
         }
 
@@ -142,7 +111,8 @@ function Invoke-BitwardenGet {
             $response = Invoke-WebRequest -Uri $uri -Headers $headers -Method GET -ErrorAction Stop
             return ($response.Content | ConvertFrom-Json)
 
-        } catch [System.Net.WebException],[Microsoft.PowerShell.Commands.HttpResponseException] {
+        }
+        catch [System.Net.WebException], [Microsoft.PowerShell.Commands.HttpResponseException] {
 
             $statusCode = 0
             if ($_.Exception.Response) {
@@ -152,7 +122,7 @@ function Invoke-BitwardenGet {
             # 401 – force token refresh once
             if ($statusCode -eq 401 -and -not $reauthenticated) {
                 Write-Warning "Received 401 from Bitwarden API – forcing token refresh."
-                $script:BwAccessToken  = $null
+                $script:BwAccessToken = $null
                 $script:BwTokenExpires = [System.DateTime]::MinValue
                 $reauthenticated = $true
                 $attempt--   # don't count this as a retry attempt
@@ -181,16 +151,14 @@ function Get-BitwardenAllPages {
     )
 
     $allItems = [System.Collections.Generic.List[object]]::new()
-    $params   = [hashtable]$QueryParams
-    $page     = 0
+    $params = [hashtable]$QueryParams
+    $page = 0
     Write-Host "Initial query params: $($params | ConvertTo-Json -Compress)"
 
     do {
         $page++
-        $data  = Invoke-BitwardenGet -Url $Url -QueryParams $params
+        $data = Invoke-BitwardenGet -Url $Url -QueryParams $params
         $items = $data.data
-        write-host $data
-        pause
         if ($items) { $allItems.AddRange([object[]]$items) }
 
         Write-Host "Page $page : fetched $($items.Count) items (total: $($allItems.Count))"
@@ -201,14 +169,15 @@ function Get-BitwardenAllPages {
         if ($nextToken) {
             Write-Host "Next continuation token found: $nextToken"
             $params['continuationToken'] = $nextToken
-        } else {
+        }
+        else {
             Write-Host "No more continuation tokens returned. Clearing parameter."
             # Remove the key entirely so the 'while' condition becomes false
             $params.Remove('continuationToken')
         }
 
         Write-Host "Using query params for next page: $($params | ConvertTo-Json -Compress)"
-    } while ($params.continuationToken) # This will now cleanly evaluate to false when removed
+    } while ($params.continuationToken)
 
     return $allItems.ToArray()
 }
@@ -221,7 +190,8 @@ function Get-BitwardenEvents {
     )
 
     $startStr = $Start.ToString('yyyy-MM-ddTHH:mm:ss.000000Z')
-    $endStr   = $End.ToString('yyyy-MM-ddTHH:mm:ss.000000Z')
+    $endStr = $End.ToString('yyyy-MM-ddTHH:mm:ss.000000Z')
+
     Write-Host "Fetching Bitwarden events from $startStr to $endStr"
 
     $Events = Get-BitwardenAllPages `
@@ -229,22 +199,6 @@ function Get-BitwardenEvents {
         -QueryParams @{ start = $startStr; end = $endStr }
 
     return $Events
-    | ForEach-Object {
-        @{
-            TimeGenerated  = $_.date
-            eventType      = $_.type
-            itemId         = $_.itemId
-            collectionId   = $_.collectionId
-            groupId        = $_.groupId
-            policyId       = $_.policyId
-            memberId       = $_.memberId
-            actingUserId   = $_.actingUserId
-            installationId = $_.installationId
-            device         = $_.device
-            ipAddress      = $_.ipAddress
-
-        }
-    }
 }
 
 function Get-BitwardenMembers {
@@ -252,7 +206,7 @@ function Get-BitwardenMembers {
     $Members = Get-BitwardenAllPages `
         -Url "$Script:ApiBaseUrl/public/members"
 
-    return $Members.data | ForEach-Object {
+    return $Members | ForEach-Object {
         @{
             TimeGenerated = $Timestamp
             memberId      = $_.id
@@ -279,7 +233,7 @@ function Build-MemberLookup {
     param([object[]]$RawMembers)
 
     $byMemberId = @{}
-    $byUserId   = @{}
+    $byUserId = @{}
 
     foreach ($m in $RawMembers) {
         $record = @{
@@ -288,7 +242,7 @@ function Build-MemberLookup {
             email    = $m.email
             name     = $m.name
         }
-        if ($m.id)     { $byMemberId[$m.id]   = $record }
+        if ($m.id) { $byMemberId[$m.id] = $record }
         if ($m.userId) { $byUserId[$m.userId] = $record }
     }
 
@@ -335,42 +289,51 @@ function ConvertTo-EnrichedEventRecords {
         # Resolve the affected member (memberId is the org-member ID)
         $member = if ($ev.memberId -and $MemberLookup.ByMemberId.ContainsKey($ev.memberId)) {
             $MemberLookup.ByMemberId[$ev.memberId]
-        } else { $null }
+        }
+        else { $null }
 
         # Resolve the acting user (actingUserId is a Bitwarden userId, not memberId)
         $actor = if ($ev.actingUserId -and $MemberLookup.ByUserId.ContainsKey($ev.actingUserId)) {
             $MemberLookup.ByUserId[$ev.actingUserId]
-        } else { $null }
+        }
+        else { $null }
 
         # Resolve the group
         $group = if ($ev.groupId -and $GroupLookup.ContainsKey($ev.groupId)) {
             $GroupLookup[$ev.groupId]
-        } else { $null }
+        }
+        else { $null }
 
         @{
-            TimeGenerated       = if ($ev.date) { $ev.date } else { $FallbackTimestamp }
-            eventType           = $ev.type
-            itemId              = $ev.itemId
-            collectionId        = $ev.collectionId
-            policyId            = $ev.policyId
-            installationId      = $ev.installationId
-            device              = $ev.device
-            ipAddress           = $ev.ipAddress
+            # Core event fields
+            TimeGenerated    = if ($ev.date) { $ev.date } else { $FallbackTimestamp }
+            eventType        = $ev.type
+            itemId           = $ev.itemId
+            collectionId     = $ev.collectionId
+            policyId         = $ev.policyId
+            installationId   = $ev.installationId
+            device           = $ev.device
+            ipAddress        = $ev.ipAddress
 
             # Affected member
-            memberId            = $ev.memberId
-            memberUserId        = if ($member) { $member.userId } else { $null }
-            memberEmail         = if ($member) { $member.email }  else { $null }
-            memberName          = if ($member) { $member.name }   else { $null }
+            memberId         = $ev.memberId
+            memberUserId     = if ($member) { $member.userId } else { $null }
+            memberEmail      = if ($member) { $member.email }  else { $null }
+            memberName       = if ($member) { $member.name }   else { $null }
 
             # Acting user
-            actingUserId        = $ev.actingUserId
-            actingUserEmail     = if ($actor)  { $actor.email }     else { $null }
-            actingUserName      = if ($actor)  { $actor.name }      else { $null }
+            actingUserId     = $ev.actingUserId
+            actingUserEmail  = if ($actor) { $actor.email }     else { $null }
+            actingUserName   = if ($actor) { $actor.name }      else { $null }
 
             # Group
-            groupId             = $ev.groupId
-            groupName           = if ($group)  { $group.groupName } else { $null }
+            groupId          = $ev.groupId
+            groupName        = if ($group) { $group.groupName } else { $null }
+
+            # Other fields
+            serviceAccountId = if ($ev.serviceAccountId) { $ev.serviceAccountId } else { $null }
+            projectId        = if ($ev.projectId) { $ev.projectId } else { $null }
+            secretId         = if ($ev.secretId) { $ev.secretId } else { $null }
         }
     }
 }
