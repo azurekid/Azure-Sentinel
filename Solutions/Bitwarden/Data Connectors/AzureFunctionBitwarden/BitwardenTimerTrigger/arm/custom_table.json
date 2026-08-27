@@ -185,7 +185,7 @@
           "logAnalytics": [
             {
               "workspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName'))]",
-              "name": "[parameters('workspaceName')]"
+              "name": "clv2ws1"
             }
           ]
         },
@@ -195,11 +195,9 @@
               "[variables('customTable')]"
             ],
             "destinations": [
-              "[parameters('workspaceName')]"
-            ],
-            "outputStream": "[variables('customTable')]",
-            "transformKql": "source | extend TimeGenerated = now()"
-          }
+                    "clv2ws1"
+                ],
+            "outputStream": "[variables('customTable')]"          }
         ]
       },
       "dependsOn": [
