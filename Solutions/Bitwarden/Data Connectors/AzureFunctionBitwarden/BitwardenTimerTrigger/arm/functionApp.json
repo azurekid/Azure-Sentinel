@@ -242,7 +242,7 @@
         "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]",
         "[resourceId('Microsoft.Insights/components', variables('applicationInsightsName'))]"
       ],
-      "kind": "functionapp",
+      "kind": "functionapp,linux",
       "identity": {
         "type": "SystemAssigned"
       },
@@ -254,7 +254,16 @@
         "httpsOnly": true,
         "clientAffinityEnabled": true,
         "siteConfig": {
-          "powerShellVersion": "7.6"
+          "functionAppConfig": {
+            "scaleAndConcurrency": {
+              "maximumInstanceCount": 100,
+              "instanceMemoryMB": "2048"
+            },
+            "runtime": {
+              "name": "powershell",
+              "version": "7.6"
+            }
+          }
         }
       }
     },
@@ -278,9 +287,6 @@
         "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]"
       ],
       "properties": {
-        "FUNCTIONS_EXTENSION_VERSION": "~4",
-        "FUNCTIONS_WORKER_RUNTIME": "powershell",
-        "FUNCTIONS_WORKER_RUNTIME_VERSION": "7.6",
         "APPINSIGHTS_CONNECTION_STRING": "[reference(concat('microsoft.insights/components/', variables('applicationInsightsName')), '2015-05-01').ConnectionString]",
         "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING": "[NF.StorageConnectionString(variables('storageAccountName'), listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2019-06-01').keys[0].value)]",
         "WEBSITE_CONTENTSHARE": "[toLower(variables('functionAppName'))]",
