@@ -224,7 +224,7 @@
         "name": "FC1",
         "tier": "FlexConsumption"
       },
-      "kind": "functionapp",
+      "kind": "linux",
       "properties": {
         "reserved": true
       }
@@ -310,17 +310,6 @@
       "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
       "apiVersion": "2019-06-01",
       "name": "[format('{0}/default/azure-webjobs-secrets', variables('storageAccountName'))]",
-      "properties": {
-        "publicAccess": "None"
-      },
-      "dependsOn": [
-        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
-      ]
-    },
-    {
-      "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
-      "apiVersion": "2019-06-01",
-      "name": "[format('{0}/default/cursors', variables('storageAccountName'))]",
       "properties": {
         "publicAccess": "None"
       },
