@@ -85,31 +85,91 @@
     {
       "type": "Microsoft.OperationalInsights/workspaces/tables",
       "apiVersion": "2022-10-01",
-      "name": "[concat(parameters('WorkspaceName'), parameters('tableName'))]",
+      "name": "[format('{0}/{1}', parameters('workspaceName'), parameters('tableName'))]",
       "properties": {
         "schema": {
           "name": "[parameters('tableName')]",
           "columns": [
-            { "name": "TimeGenerated",    "type": "datetime" },
-            { "name": "eventType",        "type": "int" },
-            { "name": "itemId",           "type": "string" },
-            { "name": "collectionId",     "type": "string" },
-            { "name": "policyId",         "type": "string" },
-            { "name": "installationId",   "type": "string" },
-            { "name": "device",           "type": "int" },
-            { "name": "ipAddress",        "type": "string" },
-            { "name": "memberId",         "type": "string" },
-            { "name": "memberUserId",     "type": "string" },
-            { "name": "memberEmail",      "type": "string" },
-            { "name": "memberName",       "type": "string" },
-            { "name": "actingUserId",     "type": "string" },
-            { "name": "actingUserEmail",  "type": "string" },
-            { "name": "actingUserName",   "type": "string" },
-            { "name": "groupId",          "type": "string" },
-            { "name": "groupName",        "type": "string" },
-            { "name": "serviceAccountId", "type": "string" },
-            { "name": "projectId",        "type": "string" },
-            { "name": "secretId",         "type": "string" }
+            {
+              "name": "TimeGenerated",
+              "type": "datetime"
+            },
+            {
+              "name": "eventType",
+              "type": "int"
+            },
+            {
+              "name": "itemId",
+              "type": "string"
+            },
+            {
+              "name": "collectionId",
+              "type": "string"
+            },
+            {
+              "name": "policyId",
+              "type": "string"
+            },
+            {
+              "name": "installationId",
+              "type": "string"
+            },
+            {
+              "name": "device",
+              "type": "int"
+            },
+            {
+              "name": "ipAddress",
+              "type": "string"
+            },
+            {
+              "name": "memberId",
+              "type": "string"
+            },
+            {
+              "name": "memberUserId",
+              "type": "string"
+            },
+            {
+              "name": "memberEmail",
+              "type": "string"
+            },
+            {
+              "name": "memberName",
+              "type": "string"
+            },
+            {
+              "name": "actingUserId",
+              "type": "string"
+            },
+            {
+              "name": "actingUserEmail",
+              "type": "string"
+            },
+            {
+              "name": "actingUserName",
+              "type": "string"
+            },
+            {
+              "name": "groupId",
+              "type": "string"
+            },
+            {
+              "name": "groupName",
+              "type": "string"
+            },
+            {
+              "name": "serviceAccountId",
+              "type": "string"
+            },
+            {
+              "name": "projectId",
+              "type": "string"
+            },
+            {
+              "name": "secretId",
+              "type": "string"
+            }
           ]
         }
       }
