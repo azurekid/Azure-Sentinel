@@ -11,10 +11,10 @@
         "description": "Base name for all created resources. Must be unique enough to avoid naming collisions (used in storage account and Function App names)."
       }
     },
-    "WorkspaceName": {
-      "type": "String",
+    "logAnalyticsWorkspaceId": {
+      "type": "SecureString",
       "metadata": {
-        "description": "Name of the Log Analytics / Microsoft Sentinel workspace."
+        "description": "Resource ID of the Log Analytics / Microsoft Sentinel workspace."
       }
     },
     "BitwardenUrl": {
@@ -42,13 +42,6 @@
         "description": "Resource ID of the delegated subnet for VNet integration (e.g. /subscriptions/.../subnets/func-subnet). Required when the Function App must reach on-premises resources via hub-spoke networking. Leave empty to skip VNet integration."
       }
     },
-    "EventLookbackMinutes": {
-      "defaultValue": 5,
-      "type": "Int",
-      "metadata": {
-        "description": "Number of minutes to look back when querying Bitwarden events. Should match or slightly exceed the timer trigger interval."
-      }
-    },
     "packageUri": {
       "defaultValue": "https://aka.ms/sentinel-BitwardenFunctionApp-functionapp",
       "type": "String",
@@ -66,7 +59,10 @@
     "logWsResId": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('WorkspaceName'))]",
     "storageSuffix": "[environment().suffixes.storage]",
     "monitoringMetricsPublisherRoleId": "3913510d-42f4-4e42-8a64-420c390055eb",
-    "useVNet": "[not(empty(parameters('VNetSubnetResourceId')))]"
+    "useVNet": "[not(empty(parameters('VNetSubnetResourceId')))]",
+    "WorkspaceSubscriptionId": "[split(parameters('logAnalyticsWorkspaceId'), '/')[2]]",
+    "WorkspaceResourceGroup": "[split(parameters('logAnalyticsWorkspaceId'), '/')[4]]",
+    "WorkspaceName": "[split(parameters('logAnalyticsWorkspaceId'), '/')[8]]"
   },
   "resources": [
     {
@@ -89,31 +85,91 @@
     {
       "type": "Microsoft.OperationalInsights/workspaces/tables",
       "apiVersion": "2022-10-01",
-      "name": "[concat(parameters('WorkspaceName'), '/BitwardenEventLogs_CL')]",
+      "name": "[concat(variables('WorkspaceName'), '/BitwardenEventLogs_CL')]",
       "properties": {
         "schema": {
           "name": "BitwardenEventLogs_CL",
           "columns": [
-            { "name": "TimeGenerated",    "type": "datetime" },
-            { "name": "eventType",        "type": "int" },
-            { "name": "itemId",           "type": "string" },
-            { "name": "collectionId",     "type": "string" },
-            { "name": "policyId",         "type": "string" },
-            { "name": "installationId",   "type": "string" },
-            { "name": "device",           "type": "int" },
-            { "name": "ipAddress",        "type": "string" },
-            { "name": "memberId",         "type": "string" },
-            { "name": "memberUserId",     "type": "string" },
-            { "name": "memberEmail",      "type": "string" },
-            { "name": "memberName",       "type": "string" },
-            { "name": "actingUserId",     "type": "string" },
-            { "name": "actingUserEmail",  "type": "string" },
-            { "name": "actingUserName",   "type": "string" },
-            { "name": "groupId",          "type": "string" },
-            { "name": "groupName",        "type": "string" },
-            { "name": "serviceAccountId", "type": "string" },
-            { "name": "projectId",        "type": "string" },
-            { "name": "secretId",         "type": "string" }
+            {
+              "name": "TimeGenerated",
+              "type": "datetime"
+            },
+            {
+              "name": "eventType",
+              "type": "int"
+            },
+            {
+              "name": "itemId",
+              "type": "string"
+            },
+            {
+              "name": "collectionId",
+              "type": "string"
+            },
+            {
+              "name": "policyId",
+              "type": "string"
+            },
+            {
+              "name": "installationId",
+              "type": "string"
+            },
+            {
+              "name": "device",
+              "type": "int"
+            },
+            {
+              "name": "ipAddress",
+              "type": "string"
+            },
+            {
+              "name": "memberId",
+              "type": "string"
+            },
+            {
+              "name": "memberUserId",
+              "type": "string"
+            },
+            {
+              "name": "memberEmail",
+              "type": "string"
+            },
+            {
+              "name": "memberName",
+              "type": "string"
+            },
+            {
+              "name": "actingUserId",
+              "type": "string"
+            },
+            {
+              "name": "actingUserEmail",
+              "type": "string"
+            },
+            {
+              "name": "actingUserName",
+              "type": "string"
+            },
+            {
+              "name": "groupId",
+              "type": "string"
+            },
+            {
+              "name": "groupName",
+              "type": "string"
+            },
+            {
+              "name": "serviceAccountId",
+              "type": "string"
+            },
+            {
+              "name": "projectId",
+              "type": "string"
+            },
+            {
+              "name": "secretId",
+              "type": "string"
+            }
           ]
         }
       }
@@ -151,7 +207,6 @@
         "[resourceId('Microsoft.OperationalInsights/workspaces/tables', parameters('WorkspaceName'), 'BitwardenEventLogs_CL')]"
       ]
     },
-
     {
       "type": "Microsoft.Authorization/roleAssignments",
       "apiVersion": "2022-04-01",
@@ -200,8 +255,14 @@
         },
         "encryption": {
           "services": {
-            "file": { "keyType": "Account", "enabled": true },
-            "blob": { "keyType": "Account", "enabled": true }
+            "file": {
+              "keyType": "Account",
+              "enabled": true
+            },
+            "blob": {
+              "keyType": "Account",
+              "enabled": true
+            }
           },
           "keySource": "Microsoft.Storage"
         }
@@ -215,8 +276,12 @@
         "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]"
       ],
       "properties": {
-        "cors": { "corsRules": [] },
-        "deleteRetentionPolicy": { "enabled": false }
+        "cors": {
+          "corsRules": []
+        },
+        "deleteRetentionPolicy": {
+          "enabled": false
+        }
       }
     },
     {
@@ -227,7 +292,9 @@
         "[resourceId('Microsoft.Storage/storageAccounts', variables('StorageAccountName'))]"
       ],
       "properties": {
-        "cors": { "corsRules": [] }
+        "cors": {
+          "corsRules": []
+        }
       }
     },
     {
