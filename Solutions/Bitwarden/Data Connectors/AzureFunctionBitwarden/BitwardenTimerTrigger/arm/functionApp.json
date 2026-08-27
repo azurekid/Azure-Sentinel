@@ -221,10 +221,13 @@
       "name": "[variables('appServicePlanName')]",
       "location": "[resourceGroup().location]",
       "sku": {
-        "name": "FC1",
-        "tier": "FlexConsumption"
+        "name": "EP1",
+        "tier": "ElasticPremium",
+        "size": "EP1",
+        "family": "EP",
+        "capacity": 1
       },
-      "kind": "functionapp",
+      "kind": "elastic,linux",
       "properties": {
         "reserved": true
       }
@@ -256,7 +259,7 @@
           },
           "runtime": {
             "name": "powershell",
-            "version": "7.4"
+            "version": "7.6"
           },
           "deployment": {
             "storage": {
