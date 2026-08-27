@@ -217,19 +217,16 @@
     },
     {
       "type": "Microsoft.Web/serverfarms",
-      "apiVersion": "2024-11-01",
+      "apiVersion": "2023-12-01",
       "name": "[variables('appServicePlanName')]",
       "location": "[resourceGroup().location]",
       "sku": {
-        "name": "EP1",
-        "tier": "ElasticPremium"
+        "name": "FC1",
+        "tier": "FlexConsumption"
       },
       "kind": "functionapp",
       "properties": {
-        "name": "[variables('appServicePlanName')]",
-        "workerSize": "0",
-        "workerSizeId": "0",
-        "numberOfWorkers": "1"
+        "reserved": true
       }
     },
     {
@@ -250,32 +247,21 @@
         "name": "[variables('functionAppName')]",
         "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]",
         "virtualNetworkSubnetId": "[if(variables('useVNet'), parameters('VNetSubnetResourceId'), json('null'))]",
-        "vnetRouteAllEnabled": "[variables('useVNet')]",
+        "reserved": true,
         "httpsOnly": true,
-        "clientAffinityEnabled": true,
-        "siteConfig": {
-          "functionAppConfig": {
-            "scaleAndConcurrency": {
-              "maximumInstanceCount": 100,
-              "instanceMemoryMB": "2048"
-            },
-            "runtime": {
-              "name": "powershell",
-              "version": "7.6"
-            }
+        "functionAppConfig": {
+          "scaleAndConcurrency": {
+            "maximumInstanceCount": 100,
+            "instanceMemoryMB": 2048
+          },
+          "runtime": {
+            "name": "powershell",
+            "version": "7.6"
+          },
+          "deployment": {
+            "packageUrl": "[parameters('packageUri')]"
           }
         }
-      }
-    },
-    {
-      "type": "Microsoft.Web/sites/extensions",
-      "name": "[concat(variables('functionAppName'), '/ZipDeploy')]",
-      "apiVersion": "2023-12-01",
-      "dependsOn": [
-        "[resourceId('Microsoft.Web/sites/config', variables('functionAppName'), 'appsettings')]"
-      ],
-      "properties": {
-        "packageUri": "[parameters('packageUri')]"
       }
     },
     {
@@ -288,10 +274,7 @@
       ],
       "properties": {
         "APPINSIGHTS_CONNECTION_STRING": "[reference(concat('microsoft.insights/components/', variables('applicationInsightsName')), '2015-05-01').ConnectionString]",
-        "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING": "[NF.StorageConnectionString(variables('storageAccountName'), listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2019-06-01').keys[0].value)]",
-        "WEBSITE_CONTENTSHARE": "[toLower(variables('functionAppName'))]",
-        "WEBSITE_RUN_FROM_PACKAGE": "1",
-        "AzureWebJobsStorage": "[NF.StorageConnectionString(variables('storageAccountName'), listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2019-06-01').keys[0].value)]",
+        "AzureWebJobsStorage": "[user().NF.StorageConnectionString(variables('storageAccountName'), listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2019-06-01').keys[0].value)]",
         "BITWARDEN_EVENT_LOOKBACK_MINUTES": "[parameters('functionSchedule')]",
         "BITWARDEN_CLIENT_ID": "[parameters('BitwardenClientId')]",
         "BITWARDEN_CLIENT_SECRET": "[parameters('BitwardenClientSecret')]",
