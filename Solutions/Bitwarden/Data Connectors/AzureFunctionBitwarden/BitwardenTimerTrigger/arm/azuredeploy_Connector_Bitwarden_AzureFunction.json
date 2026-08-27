@@ -132,6 +132,9 @@
                     "functionName": {
                         "value": "[parameters('functionName')]"
                     },
+                    "VNetSubnetResourceId": {
+                        "value": "[parameters('VNetSubnetResourceId')]"
+                    },
                     "BitwardenUrl": {
                         "value": "[parameters('BitwardenUrl')]"
                     },

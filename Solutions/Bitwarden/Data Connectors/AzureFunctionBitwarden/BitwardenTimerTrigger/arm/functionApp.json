@@ -112,6 +112,7 @@
     "normalizedLocation": "[toLower(replace(resourceGroup().location, ' ', ''))]",
     "derivedLocationShortCode": "[if(contains(variables('regionShortCodes'), variables('normalizedLocation')), variables('regionShortCodes')[variables('normalizedLocation')], take(variables('normalizedLocation'), 3))]",
     "functionAppName": "[toLower(format('func-{0}-{1}-{2}', parameters('FunctionName'), variables('derivedLocationShortCode'), '01'))]",
+    "useVNet": "[not(empty(parameters('VNetSubnetResourceId')))]",
     "appServicePlanName": "[toLower(format('asp-{0}-{1}-{2}', parameters('FunctionName'), variables('derivedLocationShortCode'), '01'))]",
     "applicationInsightsName": "[toLower(format('appi-{0}-{1}-{2}', parameters('FunctionName'), variables('derivedLocationShortCode'), '01'))]",
     "storageAccountName": "[replace(variables('functionAppName'),'-', '')]",
@@ -248,6 +249,8 @@
       "properties": {
         "name": "[variables('functionAppName')]",
         "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]",
+        "virtualNetworkSubnetId": "[if(variables('useVNet'), parameters('VNetSubnetResourceId'), json('null'))]",
+        "vnetRouteAllEnabled": "[variables('useVNet')]",
         "httpsOnly": true,
         "clientAffinityEnabled": true,
         "siteConfig": {
