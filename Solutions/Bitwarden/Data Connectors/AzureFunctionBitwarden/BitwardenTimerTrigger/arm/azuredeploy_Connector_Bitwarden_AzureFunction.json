@@ -1,0 +1,177 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "workspaceName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of the Log Analytics workspace."
+            }
+        },
+        "functionName": {
+            "type": "string",
+            "defaultValue": "KeepIt",
+            "minLength": 1,
+            "maxLength": 15,
+            "metadata": {
+                "description": "Specifies the name of the Function App."
+            }
+        },
+        "BitwardenUrl": {
+            "type": "String",
+            "metadata": {
+                "description": "URL of your Bitwarden instance. For SaaS, use 'https://bitwarden.com' or 'https://bitwarden.eu'. For self-hosted, use the base URL of your instance (e.g., 'https://vault.mybitwarden.com')."
+            }
+        },
+        "BitwardenClientId": {
+            "type": "String",
+            "metadata": {
+                "description": "Bitwarden API client_id. Found in your Bitwarden organisation admin console under Settings → API Key."
+            }
+        },
+        "BitwardenClientSecret": {
+            "type": "SecureString",
+            "metadata": {
+                "description": "Bitwarden API client_secret. Found in your Bitwarden organisation admin console under Settings → API Key."
+            }
+        },
+        "VNetSubnetResourceId": {
+            "defaultValue": "",
+            "type": "String",
+            "metadata": {
+                "description": "Resource ID of the delegated subnet for VNet integration (e.g. /subscriptions/.../subnets/func-subnet). Required when the Function App must reach on-premises resources via hub-spoke networking. Leave empty to skip VNet integration."
+            }
+        },
+        "baseUri": {
+            "type": "string",
+            "metadata": {
+                "description": "Specifies the URI of the arifacts on GitHub"
+            },
+            "defaultValue": "https://raw.githubusercontent.com/azurekid/KeepIt/refs/heads/main/Data%20Connectors/KeepIt/deployment/"
+        }
+    },
+    "variables": {
+        "regionShortCodes": {
+            "eastus": "eus",
+            "eastus2": "eus2",
+            "westus": "wus",
+            "westus2": "wus2",
+            "westus3": "wus3",
+            "centralus": "cus",
+            "northcentralus": "ncus",
+            "southcentralus": "scus",
+            "canadacentral": "cac",
+            "canadaeast": "cae",
+            "brazilsouth": "brs",
+            "northeurope": "neu",
+            "westeurope": "weu",
+            "uksouth": "uks",
+            "ukwest": "ukw",
+            "francecentral": "frc",
+            "francesouth": "frs",
+            "germanywestcentral": "gwc",
+            "swedencentral": "swc",
+            "swedensouth": "sws",
+            "norwayeast": "nwe",
+            "switzerlandnorth": "chn",
+            "switzerlandwest": "chw",
+            "italynorth": "itn",
+            "spaincentral": "spc",
+            "polandcentral": "plc",
+            "uaenorth": "uan",
+            "qatarcentral": "qac",
+            "southafricanorth": "zan",
+            "australiaeast": "aue",
+            "australiasoutheast": "ause",
+            "australiacentral": "auc",
+            "japaneast": "jpe",
+            "japanwest": "jpw",
+            "koreacentral": "krc",
+            "koreasouth": "krs",
+            "eastasia": "eas",
+            "southeastasia": "sea",
+            "centralindia": "cin",
+            "southindia": "sin",
+            "westindia": "win"
+        },
+        "normalizedLocation": "[toLower(replace(resourceGroup().location, ' ', ''))]",
+        "derivedLocationShortCode": "[if(contains(variables('regionShortCodes'), variables('normalizedLocation')), variables('regionShortCodes')[variables('normalizedLocation')], take(variables('normalizedLocation'), 3))]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2022-09-01",
+            "name": "BitwardenTable",
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[uri(parameters('baseUri'), 'custom_table.json')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "workspaceName": {
+                        "value": "[parameters('workspaceName')]"
+                    },
+                    "functionName": {
+                        "value": "[parameters('functionName')]"
+                    }
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2022-09-01",
+            "name": "FunctionApp",
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[uri(parameters('baseUri'), 'functionApp.json')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "functionName": {
+                        "value": "[parameters('functionName')]"
+                    },
+                    "BitwardenUrl": {
+                        "value": "[parameters('KeepItAccountName')]"
+                    },
+                    "BitwardenClientId": {
+                        "value": "[parameters('KeepItHost')]"
+                    },
+                    "BitwardenClientSecret": {
+                        "value": "[parameters('KeepItLoginName')]"
+                    },
+                    "dataCollectionEndpoint": {
+                        "value": "[reference('KeepItTable').outputs.endpointUri.value]"
+                    },
+                    "dataCollectionRuleName": {
+                        "value": "[reference('KeepItTable').outputs.dcrName.value]"
+                    }
+                }
+            },
+            "dependsOn": [
+                "BitwardenTable"
+            ]
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2022-09-01",
+            "name": "DataConnector",
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[uri(parameters('baseUri'), 'data_connector.json')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "workspaceName": {
+                        "value": "[parameters('workspaceName')]"
+                    }
+                }
+            },
+            "dependsOn": [
+                "BitwardenTable"
+            ]
+        }
+    ]
+}

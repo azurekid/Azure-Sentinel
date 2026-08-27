@@ -1,0 +1,381 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "functionName": {
+      "type": "string",
+      "defaultValue": "Bitwarden",
+      "minLength": 1,
+      "maxLength": 15,
+      "metadata": {
+        "description": "Specifies the name of the Function App."
+      }
+    },
+    "BitwardenUrl": {
+      "type": "String",
+      "metadata": {
+        "description": "URL of your Bitwarden instance. For SaaS, use 'https://bitwarden.com' or 'https://bitwarden.eu'. For self-hosted, use the base URL of your instance (e.g., 'https://vault.mybitwarden.com')."
+      }
+    },
+    "BitwardenClientId": {
+      "type": "String",
+      "metadata": {
+        "description": "Bitwarden API client_id. Found in your Bitwarden organisation admin console under Settings → API Key."
+      }
+    },
+    "BitwardenClientSecret": {
+      "type": "SecureString",
+      "metadata": {
+        "description": "Bitwarden API client_secret. Found in your Bitwarden organisation admin console under Settings → API Key."
+      }
+    },
+    "functionSchedule": {
+      "type": "string",
+      "defaultValue": "0 */5 * * * *",
+      "metadata": {
+        "description": "Provide schedule in the form of a [cron expression](https://en.wikipedia.org/wiki/Cron#CRON_expression)"
+      }
+    },
+    "dataCollectionEndpoint": {
+      "type": "string",
+      "defaultValue": "<dynamically-created>",
+      "metadata": {
+        "description": "Specifies the name of the Data Collection Endpoint to create"
+      }
+    },
+    "dataCollectionRuleName": {
+      "type": "string",
+      "defaultValue": "<dynamically-created>",
+      "metadata": {
+        "description": "Specifies the name of the Data Collection Rule used by the Function App"
+      }
+    },
+    "VNetSubnetResourceId": {
+      "defaultValue": "",
+      "type": "String",
+      "metadata": {
+        "description": "Resource ID of the delegated subnet for VNet integration (e.g. /subscriptions/.../subnets/func-subnet). Required when the Function App must reach on-premises resources via hub-spoke networking. Leave empty to skip VNet integration."
+      }
+    },
+    "packageUri": {
+      "type": "string",
+      "metadata": {
+        "description": "Specifies the URI to the package to deploy"
+      },
+      "defaultValue": "https://github.com/azurekid/Bitwarden/raw/refs/heads/main/Bitwarden/function.zip"
+    }
+  },
+  "variables": {
+    "regionShortCodes": {
+      "eastus": "eus",
+      "eastus2": "eus2",
+      "westus": "wus",
+      "westus2": "wus2",
+      "westus3": "wus3",
+      "centralus": "cus",
+      "northcentralus": "ncus",
+      "southcentralus": "scus",
+      "canadacentral": "cac",
+      "canadaeast": "cae",
+      "brazilsouth": "brs",
+      "northeurope": "neu",
+      "westeurope": "weu",
+      "uksouth": "uks",
+      "ukwest": "ukw",
+      "francecentral": "frc",
+      "francesouth": "frs",
+      "germanywestcentral": "gwc",
+      "swedencentral": "swc",
+      "swedensouth": "sws",
+      "norwayeast": "nwe",
+      "switzerlandnorth": "chn",
+      "switzerlandwest": "chw",
+      "italynorth": "itn",
+      "spaincentral": "spc",
+      "polandcentral": "plc",
+      "uaenorth": "uan",
+      "qatarcentral": "qac",
+      "southafricanorth": "zan",
+      "australiaeast": "aue",
+      "australiasoutheast": "ause",
+      "australiacentral": "auc",
+      "japaneast": "jpe",
+      "japanwest": "jpw",
+      "koreacentral": "krc",
+      "koreasouth": "krs",
+      "eastasia": "eas",
+      "southeastasia": "sea",
+      "centralindia": "cin",
+      "southindia": "sin",
+      "westindia": "win"
+    },
+    "normalizedLocation": "[toLower(replace(resourceGroup().location, ' ', ''))]",
+    "derivedLocationShortCode": "[if(contains(variables('regionShortCodes'), variables('normalizedLocation')), variables('regionShortCodes')[variables('normalizedLocation')], take(variables('normalizedLocation'), 3))]",
+    "functionAppName": "[toLower(format('func-{0}-{1}-{2}', parameters('FunctionName'), variables('derivedLocationShortCode'), '01'))]",
+    "appServicePlanName": "[toLower(format('asp-{0}-{1}-{2}', parameters('FunctionName'), variables('derivedLocationShortCode'), '01'))]",
+    "applicationInsightsName": "[toLower(format('appi-{0}-{1}-{2}', parameters('FunctionName'), variables('derivedLocationShortCode'), '01'))]",
+    "storageAccountName": "[replace(variables('functionAppName'),'-', '')]",
+    "metricsPublisher": "[format('/subscriptions/{0}/providers/Microsoft.Authorization/roleDefinitions/3913510d-42f4-4e42-8a64-420c390055eb', subscription().subscriptionId)]",
+    "uniqueRoleGuidMetricsPublisher": "[guid(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Insights/components",
+      "apiVersion": "2015-05-01",
+      "name": "[variables('applicationInsightsName')]",
+      "location": "[resourceGroup().location]",
+      "kind": "web",
+      "properties": {
+        "Application_Type": "web",
+        "ApplicationId": "[variables('applicationInsightsName')]"
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2023-01-01",
+      "name": "[tolower(variables('storageAccountName'))]",
+      "location": "[resourceGroup().location]",
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "kind": "StorageV2",
+      "properties": {
+        "networkAcls": {
+          "bypass": "AzureServices",
+          "virtualNetworkRules": [],
+          "ipRules": [],
+          "defaultAction": "Allow"
+        },
+        "minimumTlsVersion": "TLS1_2",
+        "allowBlobPublicAccess": false,
+        "supportsHttpsTrafficOnly": true,
+        "encryption": {
+          "services": {
+            "file": {
+              "keyType": "Account",
+              "enabled": true
+            },
+            "blob": {
+              "keyType": "Account",
+              "enabled": true
+            }
+          },
+          "keySource": "Microsoft.Storage"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices",
+      "apiVersion": "2019-06-01",
+      "name": "[format('{0}/default', variables('storageAccountName'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', tolower(variables('storageAccountName')))]"
+      ],
+      "sku": {
+        "name": "Standard_LRS",
+        "tier": "Standard"
+      },
+      "properties": {
+        "cors": {
+          "corsRules": []
+        },
+        "deleteRetentionPolicy": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/fileServices",
+      "apiVersion": "2019-06-01",
+      "name": "[format('{0}/default', variables('storageAccountName'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', tolower(variables('storageAccountName')))]"
+      ],
+      "sku": {
+        "name": "Standard_LRS",
+        "tier": "Standard"
+      },
+      "properties": {
+        "cors": {
+          "corsRules": []
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2020-04-01-preview",
+      "name": "[variables('uniqueRoleGuidMetricsPublisher')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]"
+      ],
+      "scope": "[format('Microsoft.Insights/dataCollectionRules/{0}', parameters('dataCollectionRuleName'))]",
+      "properties": {
+        "roleDefinitionId": "[variables('metricsPublisher')]",
+        "principalId": "[reference(resourceId('Microsoft.Web/sites', variables('functionAppName')), '2019-08-01', 'full').identity.principalId]"
+      }
+    },
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "apiVersion": "2024-11-01",
+      "name": "[variables('appServicePlanName')]",
+      "location": "[resourceGroup().location]",
+      "sku": {
+        "name": "Y1",
+        "tier": "Dynamic"
+      },
+      "kind": "functionapp",
+      "properties": {
+        "name": "[variables('appServicePlanName')]",
+        "workerSize": "0",
+        "workerSizeId": "0",
+        "numberOfWorkers": "1"
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "apiVersion": "2023-12-01",
+      "name": "[variables('functionAppName')]",
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+        "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]",
+        "[resourceId('Microsoft.Insights/components', variables('applicationInsightsName'))]"
+      ],
+      "kind": "functionapp",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {
+        "name": "[variables('functionAppName')]",
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]",
+        "httpsOnly": true,
+        "clientAffinityEnabled": true,
+        "siteConfig": {
+          "powerShellVersion": "7.6"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites/extensions",
+      "name": "[concat(variables('functionAppName'), '/ZipDeploy')]",
+      "apiVersion": "2023-12-01",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites/config', variables('functionAppName'), 'appsettings')]"
+      ],
+      "properties": {
+        "packageUri": "[parameters('packageUri')]"
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites/config",
+      "apiVersion": "2023-12-01",
+      "name": "[concat(variables('functionAppName'), '/appsettings')]",
+      "kind": "functionapp",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]"
+      ],
+      "properties": {
+        "FUNCTIONS_EXTENSION_VERSION": "~4",
+        "FUNCTIONS_WORKER_RUNTIME": "powershell",
+        "FUNCTIONS_WORKER_RUNTIME_VERSION": "7.6",
+        "APPINSIGHTS_CONNECTION_STRING": "[reference(concat('microsoft.insights/components/', variables('applicationInsightsName')), '2015-05-01').ConnectionString]",
+        "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING": "[NF.StorageConnectionString(variables('storageAccountName'), listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2019-06-01').keys[0].value)]",
+        "WEBSITE_CONTENTSHARE": "[toLower(variables('functionAppName'))]",
+        "WEBSITE_RUN_FROM_PACKAGE": "1",
+        "AzureWebJobsStorage": "[NF.StorageConnectionString(variables('storageAccountName'), listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2019-06-01').keys[0].value)]",
+        "BITWARDEN_EVENT_LOOKBACK_MINUTES": "[parameters('functionSchedule')]",
+        "BITWARDEN_CLIENT_ID": "[parameters('BitwardenClientId')]",
+        "BITWARDEN_CLIENT_SECRET": "[parameters('BitwardenClientSecret')]",
+        "BITWARDEN_URL": "[parameters('BitwardenUrl')]",
+        "AZURE_CLIENT_ID": "[reference(resourceId('Microsoft.Web/sites', variables('functionAppName')), '2019-08-01', 'full').identity.principalId]",
+        "DATA_COLLECTION_ENDPOINT": "[parameters('dataCollectionEndpoint')]"
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/fileServices/shares",
+      "apiVersion": "2019-06-01",
+      "name": "[format('{0}/default/{1}', variables('storageAccountName'), variables('storageAccountName'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts/fileServices', variables('storageAccountName'), 'default')]",
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+      ],
+      "properties": {
+        "shareQuota": 5120
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+      "apiVersion": "2023-01-01",
+      "name": "[format('{0}/default/azure-webjobs-hosts', variables('storageAccountName'))]",
+      "properties": {
+        "publicAccess": "None"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+      "apiVersion": "2019-06-01",
+      "name": "[format('{0}/default/azure-webjobs-secrets', variables('storageAccountName'))]",
+      "properties": {
+        "publicAccess": "None"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+      ]
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+      "apiVersion": "2019-06-01",
+      "name": "[format('{0}/default/cursors', variables('storageAccountName'))]",
+      "properties": {
+        "publicAccess": "None"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+      ]
+    }
+  ],
+  "functions": [
+    {
+      "namespace": "NF",
+      "members": {
+        "StorageConnectionString": {
+          "parameters": [
+            {
+              "name": "storageAccountName",
+              "type": "string"
+            },
+            {
+              "name": "listKey",
+              "type": "string"
+            }
+          ],
+          "output": {
+            "type": "string",
+            "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1};EndpointSuffix={2}', parameters('storageAccountName'), parameters('listKey'), toLower(environment().suffixes.storage))]"
+          }
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "functionAppName": {
+      "type": "string",
+      "value": "[variables('functionAppName')]"
+    },
+    "storageAccountName": {
+      "type": "string",
+      "value": "[tolower(variables('storageAccountName'))]"
+    },
+    "appServicePlanName": {
+      "type": "string",
+      "value": "[variables('appServicePlanName')]"
+    },
+    "applicationInsightsName": {
+      "type": "string",
+      "value": "[variables('applicationInsightsName')]"
+    }
+  }
+}
