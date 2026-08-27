@@ -189,10 +189,10 @@
                         "value": "[parameters('BitwardenClientSecret')]"
                     },
                     "dataCollectionEndpoint": {
-                        "value": "[reference('BitwardenTable').outputs.endpointUri.value]"
+                        "value": "[reference('BitwardenDataCollection').outputs.endpointUri.value]"
                     },
                     "dataCollectionRuleName": {
-                        "value": "[reference('BitwardenTable').outputs.dataCollectionRuleName.value]"
+                        "value": "[reference('BitwardenDataCollection').outputs.dataCollectionRuleName.value]"
                     }
                 }
             },

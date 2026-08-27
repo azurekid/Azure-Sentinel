@@ -259,7 +259,10 @@
             "version": "7.4"
           },
           "deployment": {
-            "packageUrl": "[parameters('packageUri')]"
+            "storage": {
+              "type": "oneDeploy",
+              "value": "[parameters('packageUri')]"
+            }
           }
         }
       }
@@ -340,5 +343,23 @@
         }
       }
     }
-  ]
+  ],
+  "outputs": {
+    "functionAppName": {
+      "type": "string",
+      "value": "[variables('functionAppName')]"
+    },
+    "storageAccountName": {
+      "type": "string",
+      "value": "[tolower(variables('storageAccountName'))]"
+    },
+    "appServicePlanName": {
+      "type": "string",
+      "value": "[variables('appServicePlanName')]"
+    },
+    "applicationInsightsName": {
+      "type": "string",
+      "value": "[variables('applicationInsightsName')]"
+    }
+  }
 }
