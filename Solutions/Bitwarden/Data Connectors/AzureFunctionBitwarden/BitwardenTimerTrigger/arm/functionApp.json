@@ -224,7 +224,7 @@
         "name": "FC1",
         "tier": "FlexConsumption"
       },
-      "kind": "linux",
+      "kind": "functionapp",
       "properties": {
         "reserved": true
       }
@@ -256,7 +256,7 @@
           },
           "runtime": {
             "name": "powershell",
-            "version": "7.6"
+            "version": "7.4"
           },
           "deployment": {
             "packageUrl": "[parameters('packageUri')]"
@@ -274,7 +274,7 @@
       ],
       "properties": {
         "APPINSIGHTS_CONNECTION_STRING": "[reference(concat('microsoft.insights/components/', variables('applicationInsightsName')), '2015-05-01').ConnectionString]",
-        "AzureWebJobsStorage": "[NF.StorageConnectionString(variables('storageAccountName'), listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2019-06-01').keys[0].value)]",
+        "AzureWebJobsStorage": "[user().NF.StorageConnectionString(variables('storageAccountName'), listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2019-06-01').keys[0].value)]",
         "BITWARDEN_EVENT_LOOKBACK_MINUTES": "[parameters('functionSchedule')]",
         "BITWARDEN_CLIENT_ID": "[parameters('BitwardenClientId')]",
         "BITWARDEN_CLIENT_SECRET": "[parameters('BitwardenClientSecret')]",
