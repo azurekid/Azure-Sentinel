@@ -10,7 +10,7 @@
         },
         "functionName": {
             "type": "string",
-            "defaultValue": "KeepIt",
+            "defaultValue": "Bitwarden",
             "minLength": 1,
             "maxLength": 15,
             "metadata": {
@@ -133,19 +133,19 @@
                         "value": "[parameters('functionName')]"
                     },
                     "BitwardenUrl": {
-                        "value": "[parameters('KeepItAccountName')]"
+                        "value": "[parameters('BitwardenUrl')]"
                     },
                     "BitwardenClientId": {
-                        "value": "[parameters('KeepItHost')]"
+                        "value": "[parameters('BitwardenClientId')]"
                     },
                     "BitwardenClientSecret": {
-                        "value": "[parameters('KeepItLoginName')]"
+                        "value": "[parameters('BitwardenClientSecret')]"
                     },
                     "dataCollectionEndpoint": {
-                        "value": "[reference('KeepItTable').outputs.endpointUri.value]"
+                        "value": "[reference('BitwardenTable').outputs.endpointUri.value]"
                     },
                     "dataCollectionRuleName": {
-                        "value": "[reference('KeepItTable').outputs.dcrName.value]"
+                        "value": "[reference('BitwardenTable').outputs.dataCollectionRuleName.value]"
                     }
                 }
             },
