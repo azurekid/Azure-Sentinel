@@ -177,7 +177,7 @@
     {
       "type": "Microsoft.Insights/dataCollectionRules",
       "apiVersion": "2021-09-01-preview",
-      "name": "[variables('dcrEventsName')]",
+      "name": "[variables('dcrName')]",
       "location": "[parameters('location')]",
       "properties": {
         "dataCollectionEndpointId": "[resourceId('Microsoft.Insights/dataCollectionEndpoints', variables('dceName'))]",
