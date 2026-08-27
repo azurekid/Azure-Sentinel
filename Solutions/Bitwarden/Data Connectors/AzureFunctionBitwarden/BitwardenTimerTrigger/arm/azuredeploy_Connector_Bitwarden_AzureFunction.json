@@ -47,7 +47,7 @@
             "metadata": {
                 "description": "Specifies the URI of the arifacts on GitHub"
             },
-            "defaultValue": "https://raw.githubusercontent.com/azurekid/KeepIt/refs/heads/main/Data%20Connectors/KeepIt/deployment/"
+            "defaultValue": "https://raw.githubusercontent.com/azurekid/Azure-Sentinel/refs/heads/azurekid/solutions/Bitwarden/Solutions/Bitwarden/Data%20Connectors/AzureFunctionBitwarden/BitwardenTimerTrigger/arm/"
         }
     },
     "variables": {
