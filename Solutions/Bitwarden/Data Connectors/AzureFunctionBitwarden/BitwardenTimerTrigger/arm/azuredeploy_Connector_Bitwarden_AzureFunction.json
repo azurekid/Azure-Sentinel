@@ -2,6 +2,12 @@
     "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
     "contentVersion": "1.0.0.0",
     "parameters": {
+        "workspaceResourceGroup": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of the resource group containing the Log Analytics workspace."
+            }
+        },
         "workspaceName": {
             "type": "string",
             "metadata": {
@@ -109,6 +115,9 @@
                     "contentVersion": "1.0.0.0"
                 },
                 "parameters": {
+                    "workspaceResourceGroup": {
+                        "value": "[resourceGroup().name]"
+                    },
                     "workspaceName": {
                         "value": "[parameters('workspaceName')]"
                     },

@@ -2,6 +2,12 @@
   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
   "contentVersion": "1.0.0.0",
   "parameters": {
+    "workspaceResourceGroup": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the resource group containing the Log Analytics workspace."
+      }
+    },
     "workspaceName": {
       "type": "string",
       "metadata": {
@@ -86,6 +92,7 @@
       "type": "Microsoft.OperationalInsights/workspaces/tables",
       "apiVersion": "2022-10-01",
       "name": "[format('{0}/{1}', parameters('workspaceName'), parameters('tableName'))]",
+      "resourceGroup": "[parameters('workspaceResourceGroup')]",
       "properties": {
         "schema": {
           "name": "[parameters('tableName')]",
@@ -184,7 +191,7 @@
         "destinations": {
           "logAnalytics": [
             {
-              "workspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName'))]",
+              "workspaceResourceId": "[resourceId(parameters('workspaceResourceGroup'), 'Microsoft.OperationalInsights/workspaces', parameters('workspaceName'))]",
               "name": "clv2ws1"
             }
           ]
@@ -203,7 +210,7 @@
       },
       "dependsOn": [
         "[resourceId('Microsoft.Insights/dataCollectionEndpoints', variables('dceName'))]",
-        "[resourceId('Microsoft.OperationalInsights/workspaces/tables', parameters('workspaceName'), parameters('tableName'))]"
+        "[resourceId(parameters('workspaceResourceGroup'), 'Microsoft.OperationalInsights/workspaces/tables', parameters('workspaceName'), parameters('tableName'))]"
       ]
     },
     {
