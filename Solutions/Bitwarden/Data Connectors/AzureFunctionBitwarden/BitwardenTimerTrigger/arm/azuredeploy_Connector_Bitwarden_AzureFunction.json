@@ -108,6 +108,7 @@
             "type": "Microsoft.Resources/deployments",
             "apiVersion": "2022-09-01",
             "name": "BitwardenTable",
+            "resourceGroup": "[parameters('workspaceResourceGroup')]",
             "properties": {
                 "mode": "Incremental",
                 "templateLink": {
@@ -115,9 +116,23 @@
                     "contentVersion": "1.0.0.0"
                 },
                 "parameters": {
-                    "workspaceResourceGroup": {
-                        "value": "[resourceGroup().name]"
-                    },
+                    "workspaceName": {
+                        "value": "[parameters('workspaceName')]"
+                    }
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2022-09-01",
+            "name": "BitwardenDataCollection",
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[uri(parameters('baseUri'), 'datacollection.json')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
                     "workspaceName": {
                         "value": "[parameters('workspaceName')]"
                     },
@@ -126,6 +141,26 @@
                     }
                 }
             }
+        },
+        {
+            "type": "Microsoft.Resources/deployments",
+            "apiVersion": "2022-09-01",
+            "name": "DataConnector",
+            "properties": {
+                "mode": "Incremental",
+                "templateLink": {
+                    "uri": "[uri(parameters('baseUri'), 'data_connector.json')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters": {
+                    "workspaceName": {
+                        "value": "[parameters('workspaceName')]"
+                    }
+                }
+            },
+            "dependsOn": [
+                "BitwardenTable"
+            ]
         },
         {
             "type": "Microsoft.Resources/deployments",
@@ -162,27 +197,8 @@
                 }
             },
             "dependsOn": [
-                "BitwardenTable"
-            ]
-        },
-        {
-            "type": "Microsoft.Resources/deployments",
-            "apiVersion": "2022-09-01",
-            "name": "DataConnector",
-            "properties": {
-                "mode": "Incremental",
-                "templateLink": {
-                    "uri": "[uri(parameters('baseUri'), 'data_connector.json')]",
-                    "contentVersion": "1.0.0.0"
-                },
-                "parameters": {
-                    "workspaceName": {
-                        "value": "[parameters('workspaceName')]"
-                    }
-                }
-            },
-            "dependsOn": [
-                "BitwardenTable"
+                "BitwardenTable",
+                "BitwardenDataCollection"
             ]
         }
     ]
