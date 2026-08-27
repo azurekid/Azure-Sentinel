@@ -221,8 +221,8 @@
       "name": "[variables('appServicePlanName')]",
       "location": "[resourceGroup().location]",
       "sku": {
-        "name": "FC1",
-        "tier": "FlexConsumption"
+        "name": "EP1",
+        "tier": "ElasticPremium"
       },
       "kind": "functionapp",
       "properties": {
