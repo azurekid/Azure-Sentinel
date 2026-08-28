@@ -146,7 +146,9 @@
     {
       "type": "Microsoft.ManagedIdentity/identities",
       "apiVersion": "2025-05-31-preview",
-      "name": "variables('uamiName')"
+      "name": "variables('uamiName')",
+      "location": "[resourceGroup().location]"
+
     },
     {
       "type": "Microsoft.Authorization/roleAssignments",

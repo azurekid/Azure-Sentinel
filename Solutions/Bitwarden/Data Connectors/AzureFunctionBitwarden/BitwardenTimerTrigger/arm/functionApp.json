@@ -188,9 +188,9 @@
       "name": "[variables('functionAppName')]",
       "location": "[resourceGroup().location]",
       "identity": {
-        "type": "userAssigned",
+        "type": "UserAssigned",
         "userAssignedIdentities": {
-          "[resourceId('Microsoft.ManagedIdentity/identities', variables('uamiName'))]": {}
+          "[parameters('managedIdentityPrincipalId')]": {}
         }
       },
       "dependsOn": [
