@@ -115,163 +115,163 @@
     "useVNet": "[not(empty(parameters('VNetSubnetResourceId')))]",
     "appServicePlanName": "[toLower(format('asp-{0}-{1}-{2}', parameters('FunctionName'), variables('derivedLocationShortCode'), '01'))]",
     "applicationInsightsName": "[toLower(format('appi-{0}-{1}-{2}', parameters('FunctionName'), variables('derivedLocationShortCode'), '01'))]",
-    "storageAccountName": "[replace(variables('functionAppName'),'-', '')]",
-    "resources": [
-      {
-        "type": "Microsoft.Insights/components",
-        "apiVersion": "2020-02-02",
-        "name": "[variables('applicationInsightsName')]",
-        "location": "[resourceGroup().location]",
-        "kind": "web",
-        "properties": {
-          "Application_Type": "web",
-          "ApplicationId": "[variables('applicationInsightsName')]"
-        }
+    "storageAccountName": "[replace(variables('functionAppName'),'-', '')]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Insights/components",
+      "apiVersion": "2020-02-02",
+      "name": "[variables('applicationInsightsName')]",
+      "location": "[resourceGroup().location]",
+      "kind": "web",
+      "properties": {
+        "Application_Type": "web",
+        "ApplicationId": "[variables('applicationInsightsName')]"
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2023-01-01",
+      "name": "[tolower(variables('storageAccountName'))]",
+      "location": "[resourceGroup().location]",
+      "sku": {
+        "name": "Standard_LRS"
       },
-      {
-        "type": "Microsoft.Storage/storageAccounts",
-        "apiVersion": "2023-01-01",
-        "name": "[tolower(variables('storageAccountName'))]",
-        "location": "[resourceGroup().location]",
-        "sku": {
-          "name": "Standard_LRS"
+      "kind": "StorageV2",
+      "properties": {
+        "networkAcls": {
+          "bypass": "AzureServices",
+          "virtualNetworkRules": [],
+          "ipRules": [],
+          "defaultAction": "Allow"
         },
-        "kind": "StorageV2",
-        "properties": {
-          "networkAcls": {
-            "bypass": "AzureServices",
-            "virtualNetworkRules": [],
-            "ipRules": [],
-            "defaultAction": "Allow"
-          },
-          "minimumTlsVersion": "TLS1_2",
-          "allowBlobPublicAccess": false,
-          "supportsHttpsTrafficOnly": true,
-          "encryption": {
-            "services": {
-              "file": {
-                "keyType": "Account",
-                "enabled": true
-              },
-              "blob": {
-                "keyType": "Account",
-                "enabled": true
-              }
+        "minimumTlsVersion": "TLS1_2",
+        "allowBlobPublicAccess": false,
+        "supportsHttpsTrafficOnly": true,
+        "encryption": {
+          "services": {
+            "file": {
+              "keyType": "Account",
+              "enabled": true
             },
-            "keySource": "Microsoft.Storage"
-          }
-        }
-      },
-      {
-        "type": "Microsoft.Web/serverfarms",
-        "apiVersion": "2022-09-01",
-        "name": "[variables('appServicePlanName')]",
-        "location": "[resourceGroup().location]",
-        "sku": {
-          "name": "EP1",
-          "tier": "ElasticPremium",
-          "size": "EP1",
-          "family": "EP",
-          "capacity": 1
-        },
-        "kind": "elastic,linux",
-        "properties": {
-          "reserved": true
-        }
-      },
-      {
-        "type": "Microsoft.Web/sites",
-        "apiVersion": "2022-09-01",
-        "name": "[variables('functionAppName')]",
-        "location": "[resourceGroup().location]",
-        "identity": {
-          "type": "UserAssigned",
-          "userAssignedIdentities": {
-            "[parameters('managedIdentityPrincipalId')]": {}
-          }
-        },
-        "dependsOn": [
-          "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
-          "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]",
-          "[resourceId('Microsoft.Insights/components', variables('applicationInsightsName'))]"
-        ],
-        "kind": "functionapp,linux",
-        "properties": {
-          "name": "[variables('functionAppName')]",
-          "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]",
-          "virtualNetworkSubnetId": "[if(variables('useVNet'), parameters('VNetSubnetResourceId'), json('null'))]",
-          "reserved": true,
-          "httpsOnly": true,
-          "siteConfig": {
-            "linuxFxVersion": "PowerShell|7.4",
-            "vnetRouteAllEnabled": true,
-            "appSettings": []
-          }
-        }
-      },
-      {
-        "type": "Microsoft.Web/sites/config",
-        "apiVersion": "2022-09-01",
-        "name": "[concat(variables('functionAppName'), '/appsettings')]",
-        "kind": "functionapp",
-        "dependsOn": [
-          "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]"
-        ],
-        "properties": {
-          "APPINSIGHTS_CONNECTION_STRING": "[reference(resourceId('Microsoft.Insights/components', variables('applicationInsightsName')), '2020-02-02').ConnectionString]",
-          "AzureWebJobsStorage": "[NF.StorageConnectionString(variables('storageAccountName'), listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2023-01-01').keys[0].value)]",
-          "WEBSITE_RUN_FROM_PACKAGE": "[parameters('packageUri')]",
-          "FUNCTIONS_WORKER_RUNTIME": "powershell",
-          "FUNCTIONS_EXTENSION_VERSION": "~4",
-          "BITWARDEN_EVENT_LOOKBACK_MINUTES": "[parameters('functionSchedule')]",
-          "BITWARDEN_CLIENT_ID": "[parameters('BitwardenClientId')]",
-          "BITWARDEN_CLIENT_SECRET": "[parameters('BitwardenClientSecret')]",
-          "BITWARDEN_URL": "[parameters('BitwardenUrl')]",
-          "AZURE_CLIENT_ID": "[reference(resourceId('Microsoft.Web/sites', variables('functionAppName')), '2022-09-01', 'full').identity.principalId]",
-          "DATA_COLLECTION_ENDPOINT": "[parameters('dataCollectionEndpoint')]"
-        }
-      }
-    ],
-    "functions": [
-      {
-        "namespace": "NF",
-        "members": {
-          "StorageConnectionString": {
-            "parameters": [
-              {
-                "name": "storageAccountName",
-                "type": "string"
-              },
-              {
-                "name": "listKey",
-                "type": "string"
-              }
-            ],
-            "output": {
-              "type": "string",
-              "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1};EndpointSuffix={2}', parameters('storageAccountName'), parameters('listKey'), toLower(environment().suffixes.storage))]"
+            "blob": {
+              "keyType": "Account",
+              "enabled": true
             }
+          },
+          "keySource": "Microsoft.Storage"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Web/serverfarms",
+      "apiVersion": "2022-09-01",
+      "name": "[variables('appServicePlanName')]",
+      "location": "[resourceGroup().location]",
+      "sku": {
+        "name": "EP1",
+        "tier": "ElasticPremium",
+        "size": "EP1",
+        "family": "EP",
+        "capacity": 1
+      },
+      "kind": "elastic,linux",
+      "properties": {
+        "reserved": true
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites",
+      "apiVersion": "2022-09-01",
+      "name": "[variables('functionAppName')]",
+      "location": "[resourceGroup().location]",
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": {
+          "[parameters('managedIdentityPrincipalId')]": {}
+        }
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+        "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]",
+        "[resourceId('Microsoft.Insights/components', variables('applicationInsightsName'))]"
+      ],
+      "kind": "functionapp,linux",
+      "properties": {
+        "name": "[variables('functionAppName')]",
+        "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]",
+        "virtualNetworkSubnetId": "[if(variables('useVNet'), parameters('VNetSubnetResourceId'), json('null'))]",
+        "reserved": true,
+        "httpsOnly": true,
+        "siteConfig": {
+          "linuxFxVersion": "PowerShell|7.4",
+          "vnetRouteAllEnabled": true,
+          "appSettings": []
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Web/sites/config",
+      "apiVersion": "2022-09-01",
+      "name": "[concat(variables('functionAppName'), '/appsettings')]",
+      "kind": "functionapp",
+      "dependsOn": [
+        "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]"
+      ],
+      "properties": {
+        "APPINSIGHTS_CONNECTION_STRING": "[reference(resourceId('Microsoft.Insights/components', variables('applicationInsightsName')), '2020-02-02').ConnectionString]",
+        "AzureWebJobsStorage": "[NF.StorageConnectionString(variables('storageAccountName'), listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2023-01-01').keys[0].value)]",
+        "WEBSITE_RUN_FROM_PACKAGE": "[parameters('packageUri')]",
+        "FUNCTIONS_WORKER_RUNTIME": "powershell",
+        "FUNCTIONS_EXTENSION_VERSION": "~4",
+        "BITWARDEN_EVENT_LOOKBACK_MINUTES": "[parameters('functionSchedule')]",
+        "BITWARDEN_CLIENT_ID": "[parameters('BitwardenClientId')]",
+        "BITWARDEN_CLIENT_SECRET": "[parameters('BitwardenClientSecret')]",
+        "BITWARDEN_URL": "[parameters('BitwardenUrl')]",
+        "AZURE_CLIENT_ID": "[reference(resourceId('Microsoft.Web/sites', variables('functionAppName')), '2022-09-01', 'full').identity.principalId]",
+        "DATA_COLLECTION_ENDPOINT": "[parameters('dataCollectionEndpoint')]"
+      }
+    }
+  ],
+  "functions": [
+    {
+      "namespace": "NF",
+      "members": {
+        "StorageConnectionString": {
+          "parameters": [
+            {
+              "name": "storageAccountName",
+              "type": "string"
+            },
+            {
+              "name": "listKey",
+              "type": "string"
+            }
+          ],
+          "output": {
+            "type": "string",
+            "value": "[format('DefaultEndpointsProtocol=https;AccountName={0};AccountKey={1};EndpointSuffix={2}', parameters('storageAccountName'), parameters('listKey'), toLower(environment().suffixes.storage))]"
           }
         }
       }
-    ],
-    "outputs": {
-      "functionAppName": {
-        "type": "string",
-        "value": "[variables('functionAppName')]"
-      },
-      "storageAccountName": {
-        "type": "string",
-        "value": "[tolower(variables('storageAccountName'))]"
-      },
-      "appServicePlanName": {
-        "type": "string",
-        "value": "[variables('appServicePlanName')]"
-      },
-      "applicationInsightsName": {
-        "type": "string",
-        "value": "[variables('applicationInsightsName')]"
-      }
+    }
+  ],
+  "outputs": {
+    "functionAppName": {
+      "type": "string",
+      "value": "[variables('functionAppName')]"
+    },
+    "storageAccountName": {
+      "type": "string",
+      "value": "[tolower(variables('storageAccountName'))]"
+    },
+    "appServicePlanName": {
+      "type": "string",
+      "value": "[variables('appServicePlanName')]"
+    },
+    "applicationInsightsName": {
+      "type": "string",
+      "value": "[variables('applicationInsightsName')]"
     }
   }
 }
