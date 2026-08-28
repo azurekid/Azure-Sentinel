@@ -125,27 +125,6 @@
         {
             "type": "Microsoft.Resources/deployments",
             "apiVersion": "2022-09-01",
-            "name": "BitwardenDataCollection",
-            "resourceGroup": "[parameters('workspaceResourceGroup')]",
-            "properties": {
-                "mode": "Incremental",
-                "templateLink": {
-                    "uri": "[uri(parameters('baseUri'), 'datacollection.json')]",
-                    "contentVersion": "1.0.0.0"
-                },
-                "parameters": {
-                    "workspaceName": {
-                        "value": "[parameters('workspaceName')]"
-                    },
-                    "functionName": {
-                        "value": "[parameters('functionName')]"
-                    }
-                }
-            }
-        },
-        {
-            "type": "Microsoft.Resources/deployments",
-            "apiVersion": "2022-09-01",
             "name": "DataConnector",
             "resourceGroup": "[parameters('workspaceResourceGroup')]",
             "properties": {
@@ -191,16 +170,15 @@
                         "value": "[parameters('BitwardenClientSecret')]"
                     },
                     "dataCollectionEndpoint": {
-                        "value": "[reference('BitwardenDataCollection').outputs.endpointUri.value]"
+                        "value": "[reference('BitwardenTable').outputs.endpointUri.value]"
                     },
-                    "dataCollectionRuleResourceId": {
-                        "value": "[reference('BitwardenDataCollection').outputs.dataCollectionRuleResourceId.value]"
+                    "managedIdentityPrincipalId": {
+                        "value": "[reference('BitwardenTable').outputs.managedIdentityPrincipalId.value]"
                     }
                 }
             },
             "dependsOn": [
-                "BitwardenTable",
-                "BitwardenDataCollection"
+                "BitwardenTable"
             ]
         }
     ]

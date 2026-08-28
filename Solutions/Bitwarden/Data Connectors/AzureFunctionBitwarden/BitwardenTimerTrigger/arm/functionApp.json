@@ -43,11 +43,11 @@
         "description": "Specifies the name of the Data Collection Endpoint to create."
       }
     },
-    "dataCollectionRuleResourceId": {
+    "managedIdentityPrincipalId": {
       "type": "string",
       "defaultValue": "<dynamically-created>",
       "metadata": {
-        "description": "Specifies the resource ID of the Data Collection Rule used by the Function App."
+        "description": "Specifies the principal ID of the managed identity to create."
       }
     },
     "VNetSubnetResourceId": {
@@ -166,20 +166,6 @@
       }
     },
     {
-      "type": "Microsoft.Authorization/roleAssignments",
-      "apiVersion": "2022-04-01",
-      "name": "[variables('uniqueRoleGuidMetricsPublisher')]",
-      "resourceGroup": "[parameters('workspaceResourceGroup')]",
-      "dependsOn": [
-        "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]"
-      ],
-      "scope": "[parameters('dataCollectionRuleResourceId')]",
-      "properties": {
-        "roleDefinitionId": "[variables('metricsPublisher')]",
-        "principalId": "[reference(resourceId('Microsoft.Web/sites', variables('functionAppName')), '2022-09-01', 'full').identity.principalId]"
-      }
-    },
-    {
       "type": "Microsoft.Web/serverfarms",
       "apiVersion": "2022-09-01",
       "name": "[variables('appServicePlanName')]",
@@ -201,15 +187,18 @@
       "apiVersion": "2022-09-01",
       "name": "[variables('functionAppName')]",
       "location": "[resourceGroup().location]",
+      "identity": {
+        "type": "userAssigned",
+        "userAssignedIdentities": {
+          "[resourceId('Microsoft.ManagedIdentity/identities', variables('uamiName'))]": {}
+        }
+      },
       "dependsOn": [
         "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
         "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]",
         "[resourceId('Microsoft.Insights/components', variables('applicationInsightsName'))]"
       ],
       "kind": "functionapp,linux",
-      "identity": {
-        "type": "SystemAssigned"
-      },
       "properties": {
         "name": "[variables('functionAppName')]",
         "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('appServicePlanName'))]",
