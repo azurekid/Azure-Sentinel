@@ -200,10 +200,10 @@
       "apiVersion": "2022-04-01",
       "name": "[variables('uniqueRoleGuidMetricsPublisher')]",
       "dependsOn": [
-        "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]",
-        "[resourceId('Microsoft.ManagedIdentity/identities', variables('uamiName'))]"
+        "[variables('uamiName')]",
+        "[variables('dcrName')]"
       ],
-      "scope": "[parameters('dataCollectionRuleResourceId')]",
+      "scope": "[resourceId(resourceGroup().name, 'Microsoft.Insights/dataCollectionRules', variables('dcrName'))]",
       "properties": {
         "roleDefinitionId": "[variables('metricsPublisher')]",
         "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/identities', variables('uamiName')).principalId, '2025-05-31-preview').principalId]"
