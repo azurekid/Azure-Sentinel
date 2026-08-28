@@ -43,13 +43,6 @@
         "description": "Specifies the name of the Data Collection Endpoint to create."
       }
     },
-    "dataCollectionRuleName": {
-      "type": "string",
-      "defaultValue": "<dynamically-created>",
-      "metadata": {
-        "description": "Specifies the name of the Data Collection Rule used by the Function App."
-      }
-    },
     "dataCollectionRuleResourceId": {
       "type": "string",
       "defaultValue": "<dynamically-created>",
