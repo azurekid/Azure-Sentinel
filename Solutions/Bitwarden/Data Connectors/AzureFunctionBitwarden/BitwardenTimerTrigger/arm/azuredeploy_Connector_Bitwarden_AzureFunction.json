@@ -126,6 +126,7 @@
             "type": "Microsoft.Resources/deployments",
             "apiVersion": "2022-09-01",
             "name": "BitwardenDataCollection",
+            "resourceGroup": "[parameters('workspaceResourceGroup')]",
             "properties": {
                 "mode": "Incremental",
                 "templateLink": {
@@ -133,9 +134,6 @@
                     "contentVersion": "1.0.0.0"
                 },
                 "parameters": {
-                    "workspaceResourceGroup": {
-                        "value": "[parameters('workspaceResourceGroup')]"
-                    },
                     "workspaceName": {
                         "value": "[parameters('workspaceName')]"
                     },
@@ -149,6 +147,7 @@
             "type": "Microsoft.Resources/deployments",
             "apiVersion": "2022-09-01",
             "name": "DataConnector",
+            "resourceGroup": "[parameters('workspaceResourceGroup')]",
             "properties": {
                 "mode": "Incremental",
                 "templateLink": {
@@ -156,9 +155,6 @@
                     "contentVersion": "1.0.0.0"
                 },
                 "parameters": {
-                    "workspaceResourceGroup": {
-                        "value": "[parameters('workspaceResourceGroup')]"
-                    },
                     "workspaceName": {
                         "value": "[parameters('workspaceName')]"
                     }

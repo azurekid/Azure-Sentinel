@@ -2,12 +2,6 @@
   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
   "contentVersion": "1.0.0.0",
   "parameters": {
-   "workspaceResourceGroup": {
-      "type": "string",
-      "metadata": {
-        "description": "Name of the resource group where the Log Analytics workspace is located."
-      }
-    },
     "workspaceName": {
       "type": "string",
       "metadata": {
@@ -20,7 +14,7 @@
   },
   "resources": [
     {
-      "name": "[concat(parameters(workspaceResourceGroup), parameters('workspaceName'),'/Microsoft.SecurityInsights/',variables('_dataConnectorContentId1'))]",
+      "name": "[concat(parameters('workspaceName'),'/Microsoft.SecurityInsights/',variables('_dataConnectorContentId1'))]",
       "apiVersion": "2021-03-01-preview",
       "type": "Microsoft.OperationalInsights/workspaces/providers/dataConnectors",
       "location": "[resourceGroup().location]",
