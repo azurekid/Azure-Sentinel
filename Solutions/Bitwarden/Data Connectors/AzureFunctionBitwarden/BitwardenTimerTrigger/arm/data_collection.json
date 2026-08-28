@@ -1,0 +1,135 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "workspaceName": {
+      "type": "string",
+      "metadata": { "description": "Name of the Log Analytics workspace." }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": { "description": "Location of the Log Analytics workspace" }
+    },
+    "functionName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 15,
+      "metadata": { "description": "Specifies the name of the Function App." }
+    },
+    "tableName": {
+      "type": "string",
+      "defaultValue": "BitwardenEventLogs_CL",
+      "metadata": { "description": "Name of the custom table to create." }
+    }
+  },
+  "variables": {
+    "regionShortCodes": {
+      "eastus": "eus", "eastus2": "eus2", "westus": "wus", "westus2": "wus2", "westus3": "wus3",
+      "centralus": "cus", "northcentralus": "ncus", "southcentralus": "scus", "canadacentral": "cac",
+      "canadaeast": "cae", "brazilsouth": "brs", "northeurope": "neu", "westeurope": "weu",
+      "uksouth": "uks", "ukwest": "ukw", "francecentral": "frc", "francesouth": "frs",
+      "germanywestcentral": "gwc", "swedencentral": "swc", "swedensouth": "sws", "norwayeast": "nwe",
+      "switzerlandnorth": "chn", "switzerlandwest": "chw", "italynorth": "itn", "spaincentral": "spc",
+      "polandcentral": "plc", "uaenorth": "uan", "qatarcentral": "qac", "southafricanorth": "zan",
+      "australiaeast": "aue", "australiasoutheast": "ause", "australiacentral": "auc", "japaneast": "jpe",
+      "japanwest": "jpw", "koreacentral": "krc", "koreasouth": "krs", "eastasia": "eas", "southeastasia": "sea",
+      "centralindia": "cin", "southindia": "sin", "westindia": "win"
+    },
+    "customTable": "[format('Custom-{0}', parameters('tableName'))]",
+    "normalizedLocation": "[toLower(replace(parameters('location'), ' ', ''))]",
+    "derivedLocationShortCode": "[if(contains(variables('regionShortCodes'), variables('normalizedLocation')), variables('regionShortCodes')[variables('normalizedLocation')], take(variables('normalizedLocation'), 3))]",
+    "dceName": "[toLower(format('dce-{0}-{1}-{2}', parameters('functionName'), variables('derivedLocationShortCode'), '01'))]",
+    "dcrName": "[toLower(format('dcr-{0}-{1}-{2}', parameters('functionName'), variables('derivedLocationShortCode'), '01'))]",
+    "uamiName": "[toLower(format('uami-{0}-{1}-{2}', parameters('functionName'), variables('derivedLocationShortCode'), '01'))]",
+    "metricsPublisher": "[format('/subscriptions/{0}/providers/Microsoft.Authorization/roleDefinitions/3913510d-42f4-4e42-8a64-420c390055eb', subscription().subscriptionId)]",
+    "uniqueRoleGuidMetricsPublisher": "[guid(resourceId('Microsoft.Insights/dataCollectionRules', variables('dcrName')))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Insights/dataCollectionEndpoints",
+      "apiVersion": "2021-04-01",
+      "name": "[variables('dceName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "networkAcls": { "publicNetworkAccess": "Enabled" }
+      }
+    },
+    {
+      "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+      "apiVersion": "2023-01-31",
+      "name": "[variables('uamiName')]",
+      "location": "[parameters('location')]"
+    },
+    {
+      "type": "Microsoft.Insights/dataCollectionRules",
+      "apiVersion": "2021-09-01-preview",
+      "name": "[variables('dcrName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "dataCollectionEndpointId": "[resourceId('Microsoft.Insights/dataCollectionEndpoints', variables('dceName'))]",
+        "destinations": {
+          "logAnalytics": [
+            {
+              "workspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName'))]",
+              "name": "clv2ws1"
+            }
+          ]
+        },
+        "dataFlows": [
+          {
+            "streams": [ "[variables('customTable')]" ],
+            "destinations": [ "clv2ws1" ],
+            "outputStream": "[variables('customTable')]"
+          }
+        ]
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Insights/dataCollectionEndpoints', variables('dceName'))]"      ]
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "name": "[variables('uniqueRoleGuidMetricsPublisher')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]",
+        "[resourceId('Microsoft.Insights/dataCollectionRules', variables('dcrName'))]"
+      ],
+      "scope": "[resourceId('Microsoft.Insights/dataCollectionRules', variables('dcrName'))]",
+      "properties": {
+        "roleDefinitionId": "[variables('metricsPublisher')]",
+        "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')), '2023-01-31', 'full').properties.principalId]"
+      }
+    }
+  ],
+  "outputs": {
+    "dataCollectionEndpointName": {
+      "type": "string",
+      "value": "[variables('dceName')]"
+    },
+    "dataCollectionRuleName": {
+      "type": "string",
+      "value": "[variables('dcrName')]"
+    },
+    "dataCollectionRuleResourceId": {
+      "type": "string",
+      "value": "[resourceId(resourceGroup().name, 'Microsoft.Insights/dataCollectionRules', variables('dcrName'))]"
+    },
+    "dataCollectionEndpoint": {
+      "type": "string",
+      "value": "[reference(resourceId(resourceGroup().name, 'Microsoft.Insights/dataCollectionEndpoints', variables('dceName')), '2021-04-01').logsIngestion.endpoint]"
+    },
+    "managedIdentityPrincipalId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName'))]"
+    },
+    "immutableId": {
+      "type": "string",
+      "value": "[reference(resourceId(resourceGroup().name, 'Microsoft.Insights/dataCollectionEndpoints', variables('dceName')), '2021-04-01').immutableId]"
+    },
+    "endpointUri": {
+      "type": "string",
+      "value": "[format('{0}/dataCollectionRules/{1}/streams/{2}?api-version=2021-11-01-preview', reference(resourceId(resourceGroup().name, 'Microsoft.Insights/dataCollectionEndpoints', variables('dceName')), '2021-04-01').logsIngestion.endpoint, reference(resourceId('Microsoft.Insights/dataCollectionRules', variables('dcrName')), '2021-09-01-preview').immutableId, variables('customTable'))]"
+    }
+  }
+}
