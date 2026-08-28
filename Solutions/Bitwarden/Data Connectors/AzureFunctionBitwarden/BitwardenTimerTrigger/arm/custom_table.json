@@ -111,12 +111,12 @@
           ]
         }
       }
-    },
-    "outputs": {
-      "workspaceResourceId": {
-        "type": "string",
-        "value": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName'))]"
-      }
     }
-  ]
+  ],
+  "outputs": {
+    "workspaceResourceId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName'))]"
+    }
+  }
 }
