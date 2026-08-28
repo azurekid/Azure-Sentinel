@@ -195,6 +195,9 @@
                     },
                     "dataCollectionRuleName": {
                         "value": "[reference('BitwardenDataCollection').outputs.dataCollectionRuleName.value]"
+                    },
+                    "dataCollectionRuleResourceId": {
+                        "value": "[reference('BitwardenDataCollection').outputs.dataCollectionRuleResourceId.value]"
                     }
                 }
             },

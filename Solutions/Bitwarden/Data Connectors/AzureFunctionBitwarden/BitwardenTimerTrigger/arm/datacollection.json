@@ -134,6 +134,10 @@
       "type": "string",
       "value": "[variables('dcrName')]"
     },
+     "dataCollectionRuleResourceId": {
+      "type": "string",
+      "value": "[resourceId(resourceGroup().name, 'Microsoft.Insights/dataCollectionRules', variables('dcrName'))]"
+    },
     "dataCollectionEndpoint": {
       "type": "string",
       "value": "[reference(resourceId(resourceGroup().name, 'Microsoft.Insights/dataCollectionEndpoints', variables('dceName')), '2021-04-01').logsIngestion.endpoint]"
