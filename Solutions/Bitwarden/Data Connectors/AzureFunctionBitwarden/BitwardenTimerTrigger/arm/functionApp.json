@@ -169,6 +169,7 @@
       "type": "Microsoft.Authorization/roleAssignments",
       "apiVersion": "2022-04-01",
       "name": "[variables('uniqueRoleGuidMetricsPublisher')]",
+      "resourceGroup": "[parameters('workspaceResourceGroup')]",
       "dependsOn": [
         "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]"
       ],
