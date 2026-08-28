@@ -206,7 +206,7 @@
       "scope": "[resourceId(resourceGroup().name, 'Microsoft.Insights/dataCollectionRules', variables('dcrName'))]",
       "properties": {
         "roleDefinitionId": "[variables('metricsPublisher')]",
-        "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/identities', variables('uamiName')).principalId, '2025-05-31-preview').principalId]"
+        "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/identities', variables('uamiName')).principalId]"
       }
     },
     {
