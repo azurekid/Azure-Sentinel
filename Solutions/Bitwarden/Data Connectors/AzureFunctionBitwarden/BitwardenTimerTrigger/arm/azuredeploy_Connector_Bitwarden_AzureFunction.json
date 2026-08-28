@@ -118,9 +118,6 @@
                 "parameters": {
                     "workspaceName": {
                         "value": "[parameters('workspaceName')]"
-                    },
-                    "functionName": {
-                        "value": "[parameters('functionName')]"
                     }
                 }
             }
@@ -133,7 +130,7 @@
             "properties": {
                 "mode": "Incremental",
                 "templateLink": {
-                    "uri": "[uri(parameters('baseUri'), 'custom_table.json')]",
+                    "uri": "[uri(parameters('baseUri'), 'data_collection.json')]",
                     "contentVersion": "1.0.0.0"
                 },
                 "parameters": {
