@@ -216,7 +216,7 @@
     },
     "managedIdentityPrincipalId": {
       "type": "string",
-      "value": "[reference(resourceId(resourceGroup().name, 'Microsoft.ManagedIdentity/identities', variables('uamiName')))]"
+      "value": "[resourceId(resourceGroup().name, 'Microsoft.ManagedIdentity/identities', variables('uamiName'))]"
     },
     "immutableId": {
       "type": "string",
