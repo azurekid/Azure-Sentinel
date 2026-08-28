@@ -200,8 +200,8 @@
       "apiVersion": "2022-04-01",
       "name": "[variables('uniqueRoleGuidMetricsPublisher')]",
       "dependsOn": [
-        "[variables('uamiName')]",
-        "[variables('dcrName')]"
+        "[resourceId('Microsoft.ManagedIdentity/identities', variables('uamiName'))]",
+        "[resourceId('Microsoft.Insights/dataCollectionRules', variables('dcrName')]"
       ],
       "scope": "[resourceId(resourceGroup().name, 'Microsoft.Insights/dataCollectionRules', variables('dcrName'))]",
       "properties": {
