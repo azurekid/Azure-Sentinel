@@ -179,7 +179,7 @@
       "dependsOn": [
         "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]"
       ],
-      "scope": "parameters('dataCollectionRuleResourceId')",
+      "scope": "[parameters('dataCollectionRuleResourceId')]",
       "properties": {
         "roleDefinitionId": "[variables('metricsPublisher')]",
         "principalId": "[reference(resourceId('Microsoft.Web/sites', variables('functionAppName')), '2022-09-01', 'full').identity.principalId]"
