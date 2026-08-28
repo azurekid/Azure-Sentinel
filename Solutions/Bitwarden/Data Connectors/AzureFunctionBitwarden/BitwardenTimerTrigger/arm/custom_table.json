@@ -161,7 +161,7 @@
       "scope": "[parameters('dataCollectionRuleResourceId')]",
       "properties": {
         "roleDefinitionId": "[variables('metricsPublisher')]",
-        "principalId": "[(resourceId('Microsoft.ManagedIdentity/identities', variables('uamiName')))]"
+        "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/identities', variables('uamiName')).principalId, '2025-05-31-preview').principalId]"
       }
     },
     {
