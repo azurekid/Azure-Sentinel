@@ -203,10 +203,11 @@
         "[resourceId('Microsoft.ManagedIdentity/identities', variables('uamiName'))]",
         "[resourceId('Microsoft.Insights/dataCollectionRules', variables('dcrName')]"
       ],
-      "scope": "[resourceId(resourceGroup().name, 'Microsoft.Insights/dataCollectionRules', variables('dcrName'))]",
+      "scope": "[resourceId('Microsoft.Insights/dataCollectionRules', variables('dcrName'))]",
       "properties": {
         "roleDefinitionId": "[variables('metricsPublisher')]",
-        "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', variables('uamiName')), '2023-01-31').principalId]"      }
+        "principalId": "[reference(resourceId('Microsoft.ManagedIdentity/identities', variables('uamiName')), '2023-01-31', full).identity.principalId]"
+      }
     },
     {
       "type": "Microsoft.Insights/dataCollectionRules",
