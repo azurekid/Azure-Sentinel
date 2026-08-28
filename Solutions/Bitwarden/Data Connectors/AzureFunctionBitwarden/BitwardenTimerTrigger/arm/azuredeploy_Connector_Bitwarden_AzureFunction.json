@@ -133,6 +133,9 @@
                     "contentVersion": "1.0.0.0"
                 },
                 "parameters": {
+                    "workspaceResourceGroup": {
+                        "value": "[parameters('workspaceResourceGroup')]"
+                    },
                     "workspaceName": {
                         "value": "[parameters('workspaceName')]"
                     },
@@ -153,6 +156,9 @@
                     "contentVersion": "1.0.0.0"
                 },
                 "parameters": {
+                    "workspaceResourceGroup": {
+                        "value": "[parameters('workspaceResourceGroup')]"
+                    },
                     "workspaceName": {
                         "value": "[parameters('workspaceName')]"
                     }

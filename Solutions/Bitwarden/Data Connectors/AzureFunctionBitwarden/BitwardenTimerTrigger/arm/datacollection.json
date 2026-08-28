@@ -2,6 +2,12 @@
   "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
   "contentVersion": "1.0.0.0",
   "parameters": {
+    "workspaceResourceGroup": {
+      "type": "string",
+      "metadata": {
+        "description": "Name of the resource group where the Log Analytics workspace is located."
+      }
+    },
     "workspaceName": {
       "type": "string",
       "metadata": {
@@ -103,7 +109,7 @@
         "destinations": {
           "logAnalytics": [
             {
-              "workspaceResourceId": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName'))]",
+              "workspaceResourceId": "[resourceId(parameters('workspaceResourceGroup'), 'Microsoft.OperationalInsights/workspaces', parameters('workspaceName'))]",
               "name": "clv2ws1"
             }
           ]
