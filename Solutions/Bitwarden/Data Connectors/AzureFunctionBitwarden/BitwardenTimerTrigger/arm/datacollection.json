@@ -136,15 +136,15 @@
     },
     "dataCollectionEndpoint": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Insights/dataCollectionEndpoints', variables('dceName')), '2021-04-01').logsIngestion.endpoint]"
+      "value": "[reference(resourceId(resourceGroup().name, 'Microsoft.Insights/dataCollectionEndpoints', variables('dceName')), '2021-04-01').logsIngestion.endpoint]"
     },
     "immutableId": {
       "type": "string",
-      "value": "[reference(resourceId('Microsoft.Insights/dataCollectionEndpoints', variables('dceName')), '2021-04-01').immutableId]"
+      "value": "[reference(resourceId(resourceGroup().name, 'Microsoft.Insights/dataCollectionEndpoints', variables('dceName')), '2021-04-01').immutableId]"
     },
     "endpointUri": {
       "type": "string",
-      "value": "[format('{0}/dataCollectionRules/{1}/streams/{2}?api-version=2021-11-01-preview', reference(resourceId('Microsoft.Insights/dataCollectionEndpoints', variables('dceName')), '2021-04-01').logsIngestion.endpoint, reference(resourceId('Microsoft.Insights/dataCollectionRules', variables('dcrName')), '2021-09-01-preview').immutableId, variables('customTable'))]"
+      "value": "[format('{0}/dataCollectionRules/{1}/streams/{2}?api-version=2021-11-01-preview', reference(resourceId(resourceGroup().name, 'Microsoft.Insights/dataCollectionEndpoints', variables('dceName')), '2021-04-01').logsIngestion.endpoint, reference(resourceId('Microsoft.Insights/dataCollectionRules', variables('dcrName')), '2021-09-01-preview').immutableId, variables('customTable'))]"
     }
   }
 }
