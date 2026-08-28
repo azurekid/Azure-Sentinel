@@ -126,7 +126,6 @@
             "type": "Microsoft.Resources/deployments",
             "apiVersion": "2022-09-01",
             "name": "DataCollection",
-            "resourceGroup": "[parameters('workspaceResourceGroup')]",
             "properties": {
                 "mode": "Incremental",
                 "templateLink": {
@@ -134,8 +133,8 @@
                     "contentVersion": "1.0.0.0"
                 },
                 "parameters": {
-                    "workspaceName": {
-                        "value": "[parameters('workspaceName')]"
+                    "workspaceResourceId": {
+                        "value": "[reference(BitwardenTable.outputs.workspaceResourceId.value)]"
                     },
                     "functionName": {
                         "value": "[parameters('functionName')]"
