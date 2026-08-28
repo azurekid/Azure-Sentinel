@@ -4,12 +4,16 @@
   "parameters": {
     "workspaceName": {
       "type": "string",
-      "metadata": { "description": "Name of the Log Analytics workspace." }
+      "metadata": {
+        "description": "Name of the Log Analytics workspace."
+      }
     },
     "tableName": {
       "type": "string",
       "defaultValue": "BitwardenEventLogs_CL",
-      "metadata": { "description": "Name of the custom table to create." }
+      "metadata": {
+        "description": "Name of the custom table to create."
+      }
     }
   },
   "variables": {
@@ -24,26 +28,86 @@
         "schema": {
           "name": "[parameters('tableName')]",
           "columns": [
-            { "name": "TimeGenerated", "type": "datetime" },
-            { "name": "eventType", "type": "int" },
-            { "name": "itemId", "type": "string" },
-            { "name": "collectionId", "type": "string" },
-            { "name": "policyId", "type": "string" },
-            { "name": "installationId", "type": "string" },
-            { "name": "device", "type": "int" },
-            { "name": "ipAddress", "type": "string" },
-            { "name": "memberId", "type": "string" },
-            { "name": "memberUserId", "type": "string" },
-            { "name": "memberEmail", "type": "string" },
-            { "name": "memberName", "type": "string" },
-            { "name": "actingUserId", "type": "string" },
-            { "name": "actingUserEmail", "type": "string" },
-            { "name": "actingUserName", "type": "string" },
-            { "name": "groupId", "type": "string" },
-            { "name": "groupName", "type": "string" },
-            { "name": "serviceAccountId", "type": "string" },
-            { "name": "projectId", "type": "string" },
-            { "name": "secretId", "type": "string" }
+            {
+              "name": "TimeGenerated",
+              "type": "datetime"
+            },
+            {
+              "name": "eventType",
+              "type": "int"
+            },
+            {
+              "name": "itemId",
+              "type": "string"
+            },
+            {
+              "name": "collectionId",
+              "type": "string"
+            },
+            {
+              "name": "policyId",
+              "type": "string"
+            },
+            {
+              "name": "installationId",
+              "type": "string"
+            },
+            {
+              "name": "device",
+              "type": "int"
+            },
+            {
+              "name": "ipAddress",
+              "type": "string"
+            },
+            {
+              "name": "memberId",
+              "type": "string"
+            },
+            {
+              "name": "memberUserId",
+              "type": "string"
+            },
+            {
+              "name": "memberEmail",
+              "type": "string"
+            },
+            {
+              "name": "memberName",
+              "type": "string"
+            },
+            {
+              "name": "actingUserId",
+              "type": "string"
+            },
+            {
+              "name": "actingUserEmail",
+              "type": "string"
+            },
+            {
+              "name": "actingUserName",
+              "type": "string"
+            },
+            {
+              "name": "groupId",
+              "type": "string"
+            },
+            {
+              "name": "groupName",
+              "type": "string"
+            },
+            {
+              "name": "serviceAccountId",
+              "type": "string"
+            },
+            {
+              "name": "projectId",
+              "type": "string"
+            },
+            {
+              "name": "secretId",
+              "type": "string"
+            }
           ]
         }
       }

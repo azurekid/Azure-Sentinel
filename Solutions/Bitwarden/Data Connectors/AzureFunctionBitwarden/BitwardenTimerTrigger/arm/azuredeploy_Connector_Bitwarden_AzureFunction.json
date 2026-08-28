@@ -134,7 +134,7 @@
                 },
                 "parameters": {
                     "workspaceResourceId": {
-                        "value": "[reference(BitwardenTable.outputs.workspaceResourceId.value)]"
+                        "value": "[reference('BitwardenTable').outputs.workspaceResourceId.value]"
                     },
                     "functionName": {
                         "value": "[parameters('functionName')]"
