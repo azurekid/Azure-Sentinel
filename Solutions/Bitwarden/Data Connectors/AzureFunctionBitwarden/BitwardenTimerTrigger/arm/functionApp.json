@@ -204,7 +204,7 @@
         "reserved": true,
         "httpsOnly": true,
         "siteConfig": {
-          "linuxFxVersion": "PowerShell|7.4",
+          "linuxFxVersion": "PowerShell|7.6",
           "vnetRouteAllEnabled": true,
           "appSettings": []
         }
@@ -228,7 +228,6 @@
         "BITWARDEN_CLIENT_ID": "[parameters('BitwardenClientId')]",
         "BITWARDEN_CLIENT_SECRET": "[parameters('BitwardenClientSecret')]",
         "BITWARDEN_URL": "[parameters('BitwardenUrl')]",
-        "AZURE_CLIENT_ID": "[reference(resourceId('Microsoft.Web/sites', variables('functionAppName')), '2022-09-01', 'full').identity.principalId]",
         "DATA_COLLECTION_ENDPOINT": "[parameters('dataCollectionEndpoint')]"
       }
     }
