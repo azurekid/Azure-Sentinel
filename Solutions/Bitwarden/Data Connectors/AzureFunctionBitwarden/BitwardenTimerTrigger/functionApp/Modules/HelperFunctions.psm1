@@ -320,7 +320,7 @@ function ConvertTo-EnrichedEventRecords {
 
         @{
             # Core event fields
-            EventTime    = if ($ev.date) { $ev.date } else { $FallbackTimestamp }
+            EventTime      = if ($ev.date) { $ev.date } else { $FallbackTimestamp }
             eventType        = $ev.type
             itemId           = $ev.itemId
             collectionId     = $ev.collectionId
