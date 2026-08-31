@@ -24,7 +24,7 @@ Function Send-Data {
     $token = Get-AzAccessToken -ResourceUrl https://monitor.azure.com
 
     $requestHeader = @{
-        "Token"          = ($token.token | ConvertTo-SecureString -AsPlainText -Force)
+        "Token"          = $token.token
         "Authentication" = 'OAuth'
         "Method"         = 'POST'
         "ContentType"    = 'application/json'
@@ -86,7 +86,7 @@ function Get-BitwardenEvents {
     Write-Host "Get-BitwardenEvents: Fetching Bitwarden events from $startStr to $endStr"
 
     $Events = Get-BitwardenAllPages `
-        -Url "$Script:ApiBaseUrl/public/events" `
+        -Url "$Script:BitwardenApiUrl/public/events" `
         -QueryParams @{ start = $startStr; end = $endStr }
 
     return $Events
@@ -205,7 +205,7 @@ function Invoke-BitwardenGet {
 function Get-BitwardenMembers {
     Write-Host "Fetching Bitwarden members."
     $Members = Get-BitwardenAllPages `
-        -Url "$Script:ApiBaseUrl/public/members"
+        -Url "$Script:BitwardenApiUrl/public/members"
 
     return $Members | ForEach-Object {
         @{
@@ -221,7 +221,7 @@ function Get-BitwardenMembers {
 function Get-BitwardenGroups {
     Write-Host "Fetching Bitwarden groups."
     return Get-BitwardenAllPages `
-        -Url "$Script:ApiBaseUrl/public/groups"
+        -Url "$Script:BitwardenApiUrl/public/groups"
 }
 
 function Build-MemberLookup {

@@ -39,7 +39,7 @@ try {
         if ($eventRecords.Count -gt 0) {
             Write-Host "Sending $($eventRecords.Count) enriched Bitwarden events to the SIEM."
         }
-        Send-Data -body ($eventRecords | ConvertTo-Json -Depth 5)
+        # Send-Data -body ($eventRecords | ConvertTo-Json -Depth 5)
     } else {
         Write-Host "No new Bitwarden events to send to the SIEM."
     }

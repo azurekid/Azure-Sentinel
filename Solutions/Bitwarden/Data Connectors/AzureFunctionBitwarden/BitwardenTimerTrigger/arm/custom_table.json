@@ -33,6 +33,10 @@
               "type": "datetime"
             },
             {
+              "name": "EventTime",
+              "type": "datetime"
+            },
+            {
               "name": "eventType",
               "type": "int"
             },
