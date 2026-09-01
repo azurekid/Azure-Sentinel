@@ -199,9 +199,6 @@ function Invoke-BitwardenGet {
     throw "Exhausted retries for $Url."
 }
 
-
-
-
 function Get-BitwardenMembers {
     Write-Host "Fetching Bitwarden members."
     $Members = Get-BitwardenAllPages `
